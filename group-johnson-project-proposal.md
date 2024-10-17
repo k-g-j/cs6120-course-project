@@ -13,10 +13,10 @@ challenging to predict. Accurate forecasting is crucial for:
 2. Solar farm operators to optimize maintenance schedules and energy trading strategies
 3. Policymakers to make informed decisions about renewable energy integration
 
-Our project will focus on creating a predictive model that can provide reliable hourly and daily
+My project will focus on creating a predictive model that can provide reliable hourly and daily
 forecasts of solar energy production for a given location. I will utilize historical solar
 radiation data, weather parameters (such as temperature, humidity, cloud cover), and past energy
-production data to train and evaluate our model.
+production data to train and evaluate the model.
 
 The primary challenges I aim to address include:
 
@@ -78,11 +78,9 @@ leveraging various machine learning techniques:
     - Employ techniques like SHAP (SHapley Additive exPlanations) values to interpret model
       predictions and understand feature importance.
 
-This multi-model approach will allow us to compare the performance of different techniques and
+This multi-model approach will allow me to compare the performance of different techniques and
 potentially combine their strengths to create a robust and accurate prediction system for solar
 energy production.
-
-Here's the related work section in markdown format:
 
 ## Related Work
 
@@ -113,7 +111,7 @@ techniques like LSTM and ANN for solar forecasting. Their model achieved 10-12% 
 values compared to previous approaches across multiple datasets [5].
 
 These studies demonstrate the potential of various machine learning and deep learning techniques for
-improving solar forecasting accuracy. Our proposed approach aims to build on this work by combining
+improving solar forecasting accuracy. My proposed approach aims to build on this work by combining
 multiple modeling techniques and incorporating additional feature engineering and uncertainty
 quantification methods.
 
@@ -123,9 +121,7 @@ quantification methods.
 regression models. Energies, 10(10), 1591. https://doi.org/10.3390/en10101591
 
 [2] Wang, H., Cai, R., Zhou, B., Aziz, S., Qin, B., Voropai, N., & Gan, L. (2020). Solar irradiance
-forecasting based on direct explainable neural network. Energy Conversion and Management, 226,
-
-113487. https://doi.org/10.1016/j.enconman.2020.113487
+forecasting based on direct explainable neural network. Energy Conversion and Management, 226, 113487. https://doi.org/10.1016/j.enconman.2020.113487
 
 [3] Huang, Q., & Wei, S. (2020). Improved quantile convolutional neural network with two-stage
 training for daily-ahead probabilistic forecasting of photovoltaic power. Energy Conversion and
@@ -136,15 +132,78 @@ probabilistic load forecasting using quantile regression NN with skip connection
 on Smart Grid, 11(6), 5442-5450. https://doi.org/10.1109/TSG.2020.2998187
 
 [5] Khan, W., Walker, S., & Zeiler, W. (2022). Improved solar photovoltaic energy generation
-forecast using deep learning-based ensemble stacking approach. Energy, 240,
+forecast using deep learning-based ensemble stacking approach. Energy, 240, 122812. https://doi.org/10.1016/j.energy.2021.122812
 
-122812. https://doi.org/10.1016/j.energy.2021.122812
+## Timeline
 
-Here's a thorough and robust assessment methodology section for your project proposal:
+Week 9-10: Data collection and preprocessing
+
+- Acquire datasets from Kaggle, including "Solar Energy Production" by Ivan Lee and "Solar Power
+  Generation Data" by Afroz
+- Clean and preprocess the data
+- Perform exploratory data analysis
+- Begin feature engineering
+
+Week 11: Model development and initial training
+
+- Complete feature engineering
+- Implement and evaluate baseline models (e.g., ARIMA, linear regression)
+- Start implementing advanced machine learning models (Random Forest, Gradient Boosting, SVR)
+
+Week 12: Advanced model development and ensemble methods
+
+- Complete implementation of machine learning models
+- Develop deep learning models (LSTM, CNN)
+- Begin implementing ensemble methods
+- Start hyperparameter tuning
+
+Week 13: Model evaluation and ablation studies
+
+- Complete ensemble methods and hyperparameter tuning
+- Perform comprehensive model evaluation using the assessment methodology
+- Conduct ablation studies
+- Begin analyzing results
+
+Week 14: Final analysis and report writing
+
+- Complete analysis of results and draw conclusions
+- Refine models based on ablation study results
+- Prepare visualizations and interpretability analysis
+- Write the final report and prepare presentation
+
+## Project Execution
+
+This project will be executed individually. As the sole member of this project, I will be
+responsible for all aspects of the work, including data preprocessing, model development,
+evaluation, and report writing. This individual approach will allow for a focused and cohesive
+implementation of the proposed methodology.
+
+## Data Sources
+
+For this project, I will utilize several relevant datasets found on Kaggle:
+
+1. "[Solar Energy Production](https://www.kaggle.com/datasets/ivnlee/solar-energy-production)" by
+   Ivan Lee: This dataset provides hourly data from multiple
+   photovoltaic installations in Calgary, which will be valuable for training and testing the models
+   on real-world solar energy production data.
+
+2. "[Solar Power Generation Data](https://www.kaggle.com/datasets/pythonafroz/solar-powe-generation-data)"
+   by Afroz: This dataset focuses on solar power generation and is
+   described as one of the fastest-growing renewable energy sources. It will provide additional data
+   points and potentially different geographical contexts for analysis.
+
+3. "[Renewable Energy World Wide: 1965-2022](https://www.kaggle.com/datasets/belayethossainds/renewable-energy-world-wide-19652022)"
+   by Belayet HossainDS: While this dataset covers a
+   broader range of renewable energy sources, it will provide valuable historical context and
+   potentially allow for analysis of long-term trends in solar energy production.
+
+These datasets will be combined and preprocessed to create a comprehensive dataset for training and
+evaluating solar energy production forecasting models. The variety of data sources will help ensure
+that the models are robust and generalizable to different contexts and geographical locations.
 
 ## Assessment Methodology
 
-To rigorously evaluate the performance of our solar energy production forecasting models, I will
+To rigorously evaluate the performance of solar energy production forecasting models, I will
 employ a comprehensive assessment methodology. This approach will include various performance
 evaluation measures, a robust cross-validation strategy, and detailed ablation studies.
 
@@ -169,7 +228,7 @@ evaluation measures, a robust cross-validation strategy, and detailed ablation s
 3. Time Series-Specific Metrics:
     - Dynamic Time Warping (DTW): To compare predicted and actual time series, accounting for
       temporal distortions.
-    - Forecast Skill Score: To compare our model's performance against a baseline (e.g., persistence
+    - Forecast Skill Score: To compare the model's performance against a baseline (e.g., persistence
       model).
 
 ### Cross-Validation Strategy
@@ -192,7 +251,7 @@ cross-validation strategies:
 
 ### Ablation Studies
 
-To understand the impact of various components of our modeling pipeline, I will conduct
+To understand the impact of various components of the modeling pipeline, I will conduct
 comprehensive ablation studies:
 
 1. Input Dimension Ablation:
@@ -238,6 +297,6 @@ To rank the impact of each change, I will:
    of each change.
 
 By conducting these comprehensive ablation studies, I aim to gain deep insights into the factors
-that most significantly influence our solar energy production forecasts. This understanding will not
-only help in refining our models but also contribute valuable knowledge to the field of renewable
+that most significantly influence solar energy production forecasts. This understanding will not
+only help in refining models but also contribute valuable knowledge to the field of renewable
 energy forecasting.
