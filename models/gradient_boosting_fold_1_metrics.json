@@ -1,1 +1,1 @@
-{"model_name":"gradient_boosting","rmse":1.1066642338,"mae":0.6470073971,"r2":0.1238806772,"mape":297.8101663415,"fold":1}
+{"model_name":"gradient_boosting","model_type":"advanced","rmse":1.1066642338,"mae":0.6470073971,"r2":0.1238806772,"mape":297.8101663415,"fold":1}

@@ -171,13 +171,20 @@ def main():
         # Generate report
         generate_model_report(metrics_df, config)
 
+        # Find best model across all models
+        best_idx = metrics_df['r2'].idxmax()
+        best_model_metrics = metrics_df.iloc[best_idx]
+
         # Log best model performance
-        best_model_metrics = metrics_df.loc[metrics_df['r2'].idxmax()]
-        logging.info(f"\nBest model performance:")
+        logging.info("\nBest model performance:")
         logging.info(
-            f"Model: {best_model_metrics['model_name']} ({best_model_metrics['model_type']})")
-        logging.info(f"R²: {best_model_metrics['r2']:.4f}")
-        logging.info(f"RMSE: {best_model_metrics['rmse']:.4f}")
+            f"Model: {best_model_metrics['model_name']} ({best_model_metrics['model_type']})"
+        )
+        logging.info(f"R²: {float(best_model_metrics['r2']):.4f}")
+        logging.info(f"RMSE: {float(best_model_metrics['rmse']):.4f}")
+        logging.info(f"MAE: {float(best_model_metrics['mae']):.4f}")
+        if 'mape' in best_model_metrics:
+            logging.info(f"MAPE: {float(best_model_metrics['mape']):.4f}")
 
     except Exception as e:
         logging.error(f"Pipeline failed: {str(e)}")

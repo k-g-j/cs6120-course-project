@@ -1,1 +1,1 @@
-{"model_name":"random_forest","rmse":0.7353607377,"mae":0.4513666166,"r2":0.3275158044,"mape":171.2985117132,"fold":4}
+{"model_name":"random_forest","model_type":"advanced","rmse":0.7353607377,"mae":0.4513666166,"r2":0.3275158044,"mape":171.2985117132,"fold":4}

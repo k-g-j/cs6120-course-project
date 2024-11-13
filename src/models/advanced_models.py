@@ -143,7 +143,7 @@ class AdvancedModels:
                 learning_rate=0.1,
                 random_state=42
             ),
-            'linear_sgd': SGDRegressor(  # Replace SVR with SGDRegressor
+            'linear_sgd': SGDRegressor(
                 loss='squared_error',
                 penalty='l2',
                 alpha=0.0001,
@@ -153,12 +153,16 @@ class AdvancedModels:
             )
         }
 
+        self.models = {}
+        self.predictions = {}
+        metrics = {}
+
         for name, model in models.items():
             logging.info(f"\nTraining {name}...")
 
             try:
+                # Get the appropriate data format
                 if name == 'linear_sgd':
-                    # For SGD, standardize the data and convert to dense arrays
                     X_train = self.X_train.values
                     y_train = self.y_train.values
                     X_test = self.X_test.values
@@ -169,24 +173,43 @@ class AdvancedModels:
 
                 # Train model
                 model.fit(X_train, y_train)
+                self.models[name] = model
 
                 # Make predictions
                 train_pred = model.predict(X_train)
                 test_pred = model.predict(X_test)
 
-                # Store model and predictions
-                self.models[name] = model
+                # Store predictions
                 self.predictions[name] = {
                     'train': train_pred,
                     'test': test_pred
                 }
 
                 # Calculate metrics
-                self.metrics[name] = self._calculate_metrics(
-                    self.y_test, test_pred, name
-                )
+                model_metrics = {
+                    'model_name': name,
+                    'model_type': 'advanced',
+                    'rmse': np.sqrt(mean_squared_error(self.y_test, test_pred)),
+                    'mae': mean_absolute_error(self.y_test, test_pred),
+                    'r2': r2_score(self.y_test, test_pred)
+                }
 
-                # Log feature importances for tree-based models
+                # Calculate MAPE
+                non_zero_mask = self.y_test != 0
+                if np.any(non_zero_mask):
+                    model_metrics['mape'] = np.mean(
+                        np.abs((self.y_test[non_zero_mask] - test_pred[non_zero_mask]) /
+                               self.y_test[non_zero_mask])) * 100
+
+                metrics[name] = model_metrics
+
+                # Log metrics
+                logging.info(f"\nMetrics for {name}:")
+                for metric, value in model_metrics.items():
+                    if metric not in ['model_name', 'model_type']:
+                        logging.info(f"{metric.upper()}: {value:.4f}")
+
+                # Log feature importances
                 if hasattr(model, 'feature_importances_'):
                     self._log_feature_importances(model, name)
                 elif name == 'linear_sgd':
@@ -196,7 +219,7 @@ class AdvancedModels:
                 logging.error(f"Error in {name} training: {str(e)}")
                 continue
 
-        return self.metrics
+        return metrics
 
     def _log_sgd_coefficients(self, model):
         """Log feature coefficients for SGD model."""
@@ -217,32 +240,6 @@ class AdvancedModels:
 
         logging.info("\nFeature importances:")
         logging.info(feature_importance)
-
-    def _calculate_metrics(self, y_true, y_pred, model_name):
-        """Calculate comprehensive performance metrics."""
-        metrics = {
-            'model_name': model_name,
-            'rmse': np.sqrt(mean_squared_error(y_true, y_pred)),
-            'mae': mean_absolute_error(y_true, y_pred),
-            'r2': r2_score(y_true, y_pred)
-        }
-
-        # Calculate MAPE only for non-zero values
-        non_zero_mask = y_true != 0
-        if np.any(non_zero_mask):
-            metrics['mape'] = np.mean(np.abs((y_true[non_zero_mask] - y_pred[non_zero_mask]) /
-                                             y_true[non_zero_mask])) * 100
-
-        logging.info(f"\nMetrics for {model_name}:")
-        for metric, value in metrics.items():
-            if metric != 'model_name':
-                logging.info(f"{metric.upper()}: {value:.4f}")
-
-        return metrics
-
-    def get_all_metrics(self):
-        """Return metrics for all trained models."""
-        return pd.DataFrame([metrics for metrics in self.metrics.values()])
 
 
 class PreprocessedData:

@@ -13,10 +13,12 @@ def create_visualizations(metrics_df, predictions, feature_importance, output_di
 
     # 1. Model Performance Comparison
     plt.figure(figsize=(12, 6))
-    metrics_summary = metrics_df.groupby('model_name').mean()
 
-    metrics_to_plot = ['rmse', 'mae', 'r2']
-    ax = metrics_summary[metrics_to_plot].plot(kind='bar')
+    # Calculate mean of numeric metrics only
+    numeric_metrics = ['rmse', 'mae', 'r2', 'mape']
+    metrics_summary = metrics_df.groupby('model_name')[numeric_metrics].mean()
+
+    ax = metrics_summary.plot(kind='bar')
     plt.title('Model Performance Comparison')
     plt.xlabel('Model')
     plt.ylabel('Score')
@@ -32,7 +34,7 @@ def create_visualizations(metrics_df, predictions, feature_importance, output_di
         importance_df = importance_df.sort_values('importance', ascending=True)
 
         plt.barh(y=importance_df['feature'], width=importance_df['importance'])
-        plt.title('Feature Importance (Random Forest)')
+        plt.title('Feature Importance (Best Model)')
         plt.xlabel('Importance')
         plt.tight_layout()
         plt.savefig(f'{output_dir}/feature_importance.png')
@@ -62,17 +64,19 @@ def create_visualizations(metrics_df, predictions, feature_importance, output_di
     plt.savefig(f'{output_dir}/error_distribution.png')
     plt.close()
 
-    # 5. Time Series Plot (if timestamps available)
-    if 'timestamp' in predictions.columns:
-        plt.figure(figsize=(15, 6))
-        plt.plot(predictions['timestamp'], predictions['actual'], label='Actual', alpha=0.7)
-        plt.plot(predictions['timestamp'], predictions['predicted'], label='Predicted', alpha=0.7)
-        plt.title('Actual vs Predicted Over Time')
-        plt.xlabel('Time')
-        plt.ylabel('Value')
-        plt.legend()
+    # 5. Model Performance by Fold
+    plt.figure(figsize=(12, 6))
+    for metric in numeric_metrics:
+        performance_by_fold = metrics_df.pivot(columns='model_name', values=metric, index='fold')
+        plt.figure(figsize=(10, 6))
+        performance_by_fold.plot(marker='o')
+        plt.title(f'{metric.upper()} by Fold')
+        plt.xlabel('Fold')
+        plt.ylabel(metric.upper())
+        plt.legend(title='Model')
+        plt.grid(True)
         plt.tight_layout()
-        plt.savefig(f'{output_dir}/time_series_comparison.png')
+        plt.savefig(f'{output_dir}/performance_{metric}_by_fold.png')
         plt.close()
 
     logging.info(f"Saved visualizations to {output_dir}/")
@@ -111,19 +115,15 @@ def generate_model_report(metrics_df, config):
 
     # Model Performance Summary
     report.append("## Model Performance Summary\n\n")
-
-    # Select only numeric columns for averaging, excluding 'model_type'
-    numeric_columns = metrics_df.select_dtypes(include=['float64', 'int64']).columns
-
-    # Group by model name and calculate mean of numeric metrics
-    summary = metrics_df.groupby('model_name')[numeric_columns].mean()
+    numeric_metrics = ['rmse', 'mae', 'r2', 'mape']
+    summary = metrics_df.groupby('model_name')[numeric_metrics].mean()
 
     # Add model type information
     model_types = metrics_df.groupby('model_name')['model_type'].first()
     summary['model_type'] = model_types
 
     # Reorder columns to put model_type first
-    cols = ['model_type'] + [col for col in summary.columns if col != 'model_type']
+    cols = ['model_type'] + numeric_metrics
     summary = summary[cols]
 
     if markdown_available:
@@ -138,7 +138,6 @@ def generate_model_report(metrics_df, config):
     for model_type in metrics_df['model_type'].unique():
         report.append(f"\n### {model_type.title()} Models\n\n")
         model_metrics = metrics_df[metrics_df['model_type'] == model_type]
-
         if markdown_available:
             report.append(model_metrics.to_markdown(index=False))
         else:
