@@ -1,0 +1,2 @@
+model,best_score,best_params
+stacked_ensemble,0.6801077699476544,{'n_folds': 3}
