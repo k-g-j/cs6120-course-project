@@ -1,19 +1,21 @@
 import numpy as np
 import pandas as pd
 from keras.src.callbacks import EarlyStopping
-from keras.src.layers import Dense, LSTM, Dropout, Input, LayerNormalization, Concatenate
+from keras.src.layers import Dense, Conv1D, GlobalAveragePooling1D, Input, Dropout
 from keras.src.models import Model
 from keras.src.optimizers import Adam
 from sklearn.base import BaseEstimator, RegressorMixin
 from sklearn.preprocessing import MinMaxScaler
 
 
-class LSTMRegressor(BaseEstimator, RegressorMixin):
-    """LSTM model with attention and residual connections."""
+class CNNRegressor(BaseEstimator, RegressorMixin):
+    """CNN model for time series forecasting."""
 
-    def __init__(self, units=64, dropout=0.2, learning_rate=0.001,
-                 batch_size=64, epochs=20, sequence_length=24):
-        self.units = units
+    def __init__(self, filters=64, kernel_size=3, dropout=0.2,
+                 learning_rate=0.001, batch_size=64, epochs=20,
+                 sequence_length=24):
+        self.filters = filters
+        self.kernel_size = kernel_size
         self.dropout = dropout
         self.learning_rate = learning_rate
         self.batch_size = batch_size
@@ -23,30 +25,36 @@ class LSTMRegressor(BaseEstimator, RegressorMixin):
         self.scaler = MinMaxScaler()
 
     def build_model(self, n_features):
-        """Build improved LSTM model."""
-        # Sequential features
-        seq_input = Input(shape=(self.sequence_length, n_features), name='sequential_input')
+        """Build CNN model using functional API."""
+        inputs = Input(shape=(self.sequence_length, n_features))
 
-        # First LSTM layer with residual connection
-        x1 = LSTM(self.units, return_sequences=True)(seq_input)
-        x1 = LayerNormalization()(x1)
-        x1 = Dropout(self.dropout)(x1)
+        # First Conv layer
+        x = Conv1D(
+            filters=self.filters,
+            kernel_size=self.kernel_size,
+            activation='relu',
+            padding='same'
+        )(inputs)
+        x = Dropout(self.dropout)(x)
 
-        # Second LSTM layer
-        x2 = LSTM(self.units // 2)(x1)
-        x2 = LayerNormalization()(x2)
-        x2 = Dropout(self.dropout)(x2)
+        # Second Conv layer
+        x = Conv1D(
+            filters=self.filters // 2,
+            kernel_size=self.kernel_size,
+            activation='relu',
+            padding='same'
+        )(x)
+        x = Dropout(self.dropout)(x)
 
-        # Dense layers with residual connections
-        x3 = Dense(32, activation='relu')(x2)
-        x4 = Dense(16, activation='relu')(x3)
-        x4 = Concatenate()([x4, Dense(16)(x2)])  # Residual connection
+        # Global pooling
+        x = GlobalAveragePooling1D()(x)
 
-        # Output layer
-        outputs = Dense(1)(x4)
+        # Dense layers
+        x = Dense(32, activation='relu')(x)
+        outputs = Dense(1)(x)
 
         # Create model
-        model = Model(inputs=seq_input, outputs=outputs)
+        model = Model(inputs=inputs, outputs=outputs)
 
         # Compile
         model.compile(
@@ -56,7 +64,7 @@ class LSTMRegressor(BaseEstimator, RegressorMixin):
         return model
 
     def create_sequences(self, X):
-        """Create sequences efficiently."""
+        """Create sequences for CNN input."""
         if isinstance(X, pd.DataFrame):
             X = X.values
 
@@ -73,7 +81,7 @@ class LSTMRegressor(BaseEstimator, RegressorMixin):
         return sequences
 
     def fit(self, X, y):
-        """Train the model with early stopping."""
+        """Train the CNN model."""
         try:
             # Create sequences
             X_seq = self.create_sequences(X)
@@ -87,13 +95,12 @@ class LSTMRegressor(BaseEstimator, RegressorMixin):
             callbacks = [
                 EarlyStopping(
                     monitor='val_loss',
-                    patience=5,
-                    restore_best_weights=True,
-                    mode='min'
+                    patience=3,
+                    restore_best_weights=True
                 )
             ]
 
-            # Train model
+            # Train
             self.model.fit(
                 X_seq, y_seq,
                 epochs=self.epochs,
@@ -106,7 +113,7 @@ class LSTMRegressor(BaseEstimator, RegressorMixin):
             return self
 
         except Exception as e:
-            print(f"Error in LSTM fit: {str(e)}")
+            print(f"Error in CNN fit: {str(e)}")
             raise
 
     def predict(self, X):

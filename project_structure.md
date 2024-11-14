@@ -1,90 +1,151 @@
-]# Project Structure
+# Project Structure
 
 ```
 cs6120-course-project/
-├── docs/                              # Documentation
-├── literature/                        # Research papers and references
-├── logs/                             # Log files
-│   ├── advanced_model_training_*.log  # Advanced model training logs
-│   ├── model_training_*.log          # Basic model training logs
-│   ├── pipeline_*.log                # Pipeline execution logs
-│   └── preprocessing_*.log           # Data preprocessing logs
-├── model_results/                    # Model performance metrics
-│   ├── advanced_metrics.csv          # Advanced models metrics
-│   ├── baseline_metrics.csv          # Baseline models metrics
-│   └── model_metrics.csv             # Combined model metrics
-├── models/                           # Saved model files
-│   ├── gradient_boosting_fold_*.joblib    # Gradient boosting models
-│   ├── gradient_boosting_fold_*_metrics.json
-│   ├── linear_sgd_fold_*.joblib          # SGD models
-│   ├── linear_sgd_fold_*_metrics.json
-│   ├── random_forest_fold_*.joblib        # Random forest models
-│   └── random_forest_fold_*_metrics.json
-├── processed_data/                   # Preprocessed datasets
-├── reports/                          # Generated reports
-│   └── model_evaluation_report.md    # Model evaluation report
-├── src/                             # Source code
-│   ├── models/                      # Model implementations
+├── data/                             # Raw data directory
+│   └── solar_data/                   # Solar production data
+├── docs/                             # Documentation
+├── literature/                       # Research papers and references
+├── logs/                            # Log files
+│   ├── advanced_pipeline_*.log      # Advanced pipeline logs
+│   └── pipeline_*.log               # Basic pipeline logs
+├── results/                         # Model results and metrics
+│   ├── hyperparameter_tuning/       # Hyperparameter tuning results
+│   │   ├── ensemble_tuning.csv      # Ensemble model tuning results
+│   │   └── cv_results.csv           # Cross-validation results
+│   └── final_model_metrics.csv      # Combined final model metrics
+├── models/                          # Saved model files
+│   ├── deep_learning/              # Deep learning model files
+│   │   ├── lstm_*.h5               # LSTM model files
+│   │   └── cnn_*.h5                # CNN model files
+│   ├── ensemble/                   # Ensemble model files
+│   │   └── stacked_ensemble_*.joblib # Stacked ensemble models
+│   ├── checkpoints/                # Model checkpoints
+│   └── baseline/                   # Baseline model files
+│       ├── linear_regression_*.joblib
+│       ├── ridge_*.joblib
+│       └── lasso_*.joblib
+├── processed_data/                  # Preprocessed datasets
+│   └── solar_production/           # Processed solar data
+├── reports/                         # Generated reports
+│   └── model_evaluation_report.md   # Model evaluation report
+├── src/                            # Source code
+│   ├── models/                     # Model implementations
 │   │   ├── __init__.py
-│   │   ├── advanced_models.py       # Advanced ML models
-│   │   └── baseline_models.py       # Baseline models
-│   ├── visualization/               # Visualization utilities
+│   │   ├── advanced_ensemble.py    # Stacked ensemble implementation
+│   │   ├── advanced_models.py      # Advanced ML models
+│   │   ├── cnn_model.py           # CNN model implementation
+│   │   ├── lstm_model.py          # LSTM model implementation
+│   │   ├── svr_model.py           # SVR model implementation
+│   │   ├── feature_engineering.py  # Feature engineering utilities
+│   │   └── hyperparameter_tuning.py # Hyperparameter tuning utilities
+│   ├── visualization/              # Visualization utilities
 │   │   ├── __init__.py
-│   │   └── model_evaluation.py      # Model evaluation plots
+│   │   └── model_evaluation.py     # Model evaluation plots
 │   ├── __init__.py
-│   ├── data_preprocessing.py        # Data preprocessing pipeline
-│   └── train_advanced_models.py     # Advanced model training
-├── visualizations/                   # Generated plots and figures
-│   ├── actual_vs_predicted.png      # Actual vs predicted plot
-│   ├── error_distribution.png       # Error distribution plot
-│   ├── feature_importance.png       # Feature importance plot
-│   ├── model_comparison.png         # Model comparison plot
-│   ├── performance_mae_by_fold.png  # MAE by fold plot
-│   ├── performance_mape_by_fold.png # MAPE by fold plot
-│   ├── performance_r2_by_fold.png   # R² by fold plot
-│   └── performance_rmse_by_fold.png # RMSE by fold plot
-├── .gitignore                       # Git ignore file
-├── analysis_results.xlsx            # Analysis results spreadsheet
-├── config.py                        # Configuration settings
-├── group-johnson-project-proposal.md # Project proposal
-├── group-johnson-project-proposal.pdf # Project proposal PDF
-├── main.py                          # Main script
-├── pipeline_runner.py               # Pipeline orchestration
-└── project_structure.md             # This file
-
+│   ├── data_preprocessing.py       # Data preprocessing pipeline
+│   ├── train_advanced_models.py    # Advanced model training
+│   ├── train_ensemble.py          # Ensemble model training
+│   ├── train_lstm.py             # LSTM model training
+│   └── train_models.py           # Baseline model training
+├── visualizations/                  # Generated plots and figures
+│   ├── model_comparison/           # Model comparison plots
+│   │   ├── performance_comparison.png
+│   │   └── feature_importance.png
+│   ├── error_analysis/            # Error analysis plots
+│   │   ├── error_distribution.png
+│   │   └── residual_plots.png
+│   └── time_series/               # Time series plots
+│       ├── actual_vs_predicted.png
+│       └── forecast_plots.png
+├── .gitignore                      # Git ignore file
+├── config.py                       # Configuration settings
+├── pipeline_runner.py              # Basic pipeline runner
+├── advanced_pipeline_runner.py     # Advanced pipeline runner
+└── project_structure.md            # This file
 ```
 
 ## Directory Descriptions
 
 ### Core Directories
 
-- **src/**: Source code for all model implementations and utilities
-- **models/**: Saved model files and their metrics
-- **model_results/**: CSV files containing model performance metrics
-- **logs/**: Timestamped log files from different pipeline stages
+- **src/**: Source code containing all model implementations and utilities
+    - **models/**: Model implementations including advanced, ensemble, and deep learning
+    - **visualization/**: Visualization utilities for model evaluation
+- **models/**: Saved model files organized by model type
+    - **deep_learning/**: LSTM and CNN models
+    - **ensemble/**: Stacked ensemble models
+    - **baseline/**: Basic regression models
+- **results/**: Model performance metrics and tuning results
+- **logs/**: Pipeline execution logs with timestamps
 
-### Documentation
+### Documentation and References
 
 - **docs/**: Project documentation
 - **reports/**: Generated analysis reports
 - **literature/**: Research papers and references
 
-### Data
+### Data Management
 
+- **data/**: Raw data storage
 - **processed_data/**: Preprocessed and cleaned datasets
-- **model_results/**: Model performance metrics and analysis
+- **results/**: Model performance metrics and analysis
+    - **hyperparameter_tuning/**: Tuning results for different models
+    - **final_model_metrics.csv**: Combined performance metrics
 
-### Outputs
+### Visualization Outputs
 
-- **visualizations/**: Generated plots and performance visualizations
-- **reports/**: Detailed model evaluation reports
-- **models/**: Saved model states for each fold
+- **visualizations/**: Generated plots and figures
+    - **model_comparison/**: Performance comparison visualizations
+    - **error_analysis/**: Error distribution and residual plots
+    - **time_series/**: Time series specific visualizations
 
-### Configuration
+### Pipeline and Configuration
 
 - **config.py**: Global configuration settings
+- **pipeline_runner.py**: Basic pipeline orchestration
+- **advanced_pipeline_runner.py**: Advanced model pipeline orchestration
 - **.gitignore**: Git ignore patterns
-- **pipeline_runner.py**: Main pipeline orchestration script
 
-Each directory serves a specific purpose in the ML pipeline, from data preprocessing through model training to evaluation and visualization. The
-structure supports reproducible research and clear organization of all project components.
+## Project Components
+
+### Model Types
+
+1. **Baseline Models**
+    - Linear Regression
+    - Ridge Regression
+    - Lasso Regression
+
+2. **Advanced Models**
+    - Random Forest
+    - Gradient Boosting
+    - SGD Regressor
+    - Support Vector Regression (SVR)
+
+3. **Deep Learning Models**
+    - LSTM (Long Short-Term Memory)
+    - CNN (Convolutional Neural Network)
+
+4. **Ensemble Models**
+    - Stacked Ensemble
+
+### Pipeline Stages
+
+1. Data Preprocessing
+2. Feature Engineering
+3. Model Training
+4. Hyperparameter Tuning
+5. Model Evaluation
+6. Results Visualization
+
+The structure supports a comprehensive machine learning pipeline with:
+
+- Multiple model types (baseline, advanced, ensemble, deep learning)
+- Separate training scripts for different model types
+- Organized storage of model artifacts and results
+- Clear separation of concerns between different components
+- Support for both basic and advanced pipelines
+- Comprehensive visualization capabilities
+- Systematic evaluation and reporting
+
+This organization ensures reproducibility, maintainability, and clear documentation of the entire machine learning workflow.

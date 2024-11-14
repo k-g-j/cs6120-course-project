@@ -1,68 +1,22 @@
 import logging
-import os
-from datetime import datetime
-from pathlib import Path
 
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
 
 from src.models.advanced_models import AdvancedModels
+from src.models.feature_engineering import FeatureEngineer
+from src.models.hyperparameter_tuning import tune_model_hyperparameters
 from src.visualization.model_evaluation import create_visualizations, save_model_artifacts
 
 
-def setup_logging():
-    """Set up logging configuration."""
-    log_dir = 'logs'
-    os.makedirs(log_dir, exist_ok=True)
+def train_and_evaluate_advanced_models(data, config, param_grids):
+    """Train and evaluate advanced models with hyperparameter tuning."""
+    logging.info("Starting advanced model training with hyperparameter tuning...")
 
-    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    log_file = os.path.join(log_dir, f'advanced_model_training_{timestamp}.log')
-
-    logging.basicConfig(
-        level=logging.INFO,
-        format='%(asctime)s - %(levelname)s - %(message)s',
-        handlers=[
-            logging.FileHandler(log_file),
-            logging.StreamHandler()
-        ]
-    )
-
-
-def load_processed_data():
-    """Load processed solar production data."""
-    logging.info("Loading processed solar production data...")
-
-    solar_prod = pd.read_csv('processed_data/processed_solar_production.csv')
-
-    # Convert date to datetime and set as index
-    solar_prod['datetime'] = pd.to_datetime(solar_prod['date'])
-    solar_prod.set_index('datetime', inplace=True)
-
-    # Clean up columns
-    if 'Unnamed: 0' in solar_prod.columns:
-        solar_prod = solar_prod.drop('Unnamed: 0', axis=1)
-    if 'date' in solar_prod.columns:
-        solar_prod = solar_prod.drop('date', axis=1)
-
-    logging.info(f"Data shape: {solar_prod.shape}")
-    logging.info(f"Columns: {solar_prod.columns.tolist()}")
-    logging.info(f"Date range: {solar_prod.index.min()} to {solar_prod.index.max()}")
-
-    return solar_prod
-
-
-def collect_predictions(model_predictions, actual_values, timestamps):
-    """Collect predictions and actual values for visualization."""
-    return pd.DataFrame({
-        'timestamp': timestamps,
-        'actual': actual_values,
-        'predicted': model_predictions,
-    })
-
-
-def train_and_evaluate_advanced_models(data, config):
-    """Train and evaluate advanced models using time series cross-validation."""
-    logging.info("Starting advanced model training...")
+    # Create features using FeatureEngineer
+    feature_engineer = FeatureEngineer()
+    processed_data = feature_engineer.create_all_features(data)
+    feature_sets = feature_engineer.get_feature_sets()
 
     tscv = TimeSeriesSplit(n_splits=5)
     all_metrics = []
@@ -71,136 +25,104 @@ def train_and_evaluate_advanced_models(data, config):
     best_r2 = -float('inf')
     feature_importance_data = None
 
-    for fold, (train_idx, test_idx) in enumerate(tscv.split(data), 1):
+    for fold, (train_idx, test_idx) in enumerate(tscv.split(processed_data), 1):
         logging.info(f"Training fold {fold}/5...")
 
         try:
             # Split data
-            train_data = data.iloc[train_idx]
-            test_data = data.iloc[test_idx]
+            train_data = processed_data.iloc[train_idx]
+            test_data = processed_data.iloc[test_idx]
 
-            # Initialize and train advanced models
+            # Initialize models
             advanced = AdvancedModels(train_data, test_data, target_col='kWh')
-            advanced.prepare_data()
+            advanced.prepare_data(feature_columns=feature_sets['base'])
 
-            # Train models and get metrics
+            # Train models first
             fold_metrics = advanced.train_models()
 
-            for name, metrics in fold_metrics.items():
-                model = advanced.models[name]
-                predictions = advanced.predictions[name]
+            if not fold_metrics:
+                logging.warning(f"No models trained successfully in fold {fold}")
+                continue
 
-                # Add fold number to metrics
-                metrics['fold'] = fold
-                all_metrics.append(metrics)
+            # Tune hyperparameters for trained models
+            for model_name in fold_metrics.keys():
+                if model_name in param_grids:
+                    logging.info(f"\nTuning {model_name}...")
+                    param_grid = param_grids[model_name]
 
-                # Collect predictions
-                fold_predictions = collect_predictions(
-                    predictions['test'],
-                    advanced.y_test,
-                    test_data.index
-                )
-                fold_predictions['model'] = name
-                fold_predictions['fold'] = fold
-                all_predictions.append(fold_predictions)
+                    # Tune hyperparameters
+                    best_model_fold, best_params, best_score = tune_model_hyperparameters(
+                        advanced.models[model_name],
+                        param_grid,
+                        advanced.X_train,
+                        advanced.y_train,
+                        cv=3
+                    )
 
-                # Save model artifacts
-                model_dir = str(config.MODEL_DIR) if hasattr(config, 'MODEL_DIR') else 'models'
-                save_model_artifacts(model, name, fold, metrics, output_dir=model_dir)
+                    if best_model_fold is not None:
+                        logging.info(f"Best parameters for {model_name}: {best_params}")
 
-                # Track best model
-                if metrics['r2'] > best_r2:
-                    best_r2 = metrics['r2']
-                    best_model = (name, model)
-                    if hasattr(model, 'feature_importances_'):
-                        feature_importance_data = pd.DataFrame({
-                            'feature': advanced.feature_cols,
-                            'importance': model.feature_importances_
-                        })
+                        # Update model and get new predictions
+                        advanced.models[model_name] = best_model_fold
+                        predictions = advanced.evaluate_model(model_name)
+
+                        if predictions is not None:
+                            # Get updated metrics
+                            metrics = advanced.get_metrics(model_name)
+                            metrics['fold'] = fold
+                            all_metrics.append(metrics)
+
+                            # Save model artifacts
+                            save_model_artifacts(
+                                best_model_fold,
+                                model_name,
+                                fold,
+                                metrics,
+                                output_dir=str(config.MODEL_DIR)
+                            )
+
+                            # Track best model
+                            if metrics['r2'] > best_r2:
+                                best_r2 = metrics['r2']
+                                best_model = (model_name, best_model_fold)
+
+                                if hasattr(best_model_fold, 'feature_importances_'):
+                                    feature_importance_data = pd.DataFrame({
+                                        'feature': advanced.feature_cols,
+                                        'importance': best_model_fold.feature_importances_
+                                    })
+
+                            # Collect predictions
+                            predictions_df = pd.DataFrame({
+                                'timestamp': test_data.index,
+                                'actual': advanced.y_test,
+                                'predicted': predictions,
+                                'model': model_name,
+                                'fold': fold
+                            })
+                            all_predictions.append(predictions_df)
 
         except Exception as e:
             logging.error(f"Error in fold {fold}: {str(e)}")
             continue
 
-    if not all_predictions:
+    if not all_metrics:
         raise ValueError("No models were successfully trained")
 
     # Create metrics DataFrame
     metrics_df = pd.DataFrame(all_metrics)
 
-    # Combine all predictions
+    # Combine predictions
     predictions_df = pd.concat(all_predictions, ignore_index=True)
     predictions_df['timestamp'] = pd.to_datetime(predictions_df['timestamp'])
     predictions_df.set_index('timestamp', inplace=True)
 
     # Create visualizations
-    vis_dir = str(config.VISUALIZATIONS_DIR) if hasattr(config,
-                                                        'VISUALIZATIONS_DIR') else 'visualizations'
     create_visualizations(
         metrics_df,
         predictions_df,
         feature_importance_data,
-        output_dir=vis_dir
+        output_dir=str(config.VISUALIZATIONS_DIR)
     )
 
-    # Save metrics
-    results_dir = str(config.RESULTS_DIR) if hasattr(config, 'RESULTS_DIR') else 'model_results'
-    os.makedirs(results_dir, exist_ok=True)
-    metrics_file = os.path.join(results_dir, 'advanced_metrics.csv')
-    metrics_df.to_csv(metrics_file, index=False)
-
     return metrics_df, best_model
-
-
-def main():
-    setup_logging()
-
-    try:
-        # Create necessary directories
-        for dir_name in ['visualizations', 'models', 'reports', 'model_results']:
-            Path(dir_name).mkdir(parents=True, exist_ok=True)
-
-        # Load data
-        solar_data = load_processed_data()
-
-        # Create minimal config
-        class Config:
-            def __init__(self):
-                self.MODEL_DIR = Path('models')
-                self.RESULTS_DIR = Path('model_results')
-                self.VISUALIZATIONS_DIR = Path('visualizations')
-                self.REPORTS_DIR = Path('reports')
-
-        config = Config()
-
-        # Train and evaluate advanced models
-        metrics_df, (best_model_name, best_model) = train_and_evaluate_advanced_models(solar_data,
-                                                                                       config)
-
-        # Log summary metrics
-        logging.info("\nAverage metrics across folds:")
-        summary = metrics_df.groupby('model_name').mean()
-        logging.info("\n" + str(summary))
-
-        # Calculate best R² from metrics
-        best_r2 = metrics_df.loc[metrics_df['model_name'] == best_model_name, 'r2'].max()
-
-        # Log best model
-        logging.info(f"\nBest model: {best_model_name} (R² = {best_r2:.4f})")
-
-        # Save best model separately
-        save_model_artifacts(
-            best_model,
-            f"{best_model_name}_best",
-            'final',
-            {'r2': best_r2},
-            output_dir='models'
-        )
-
-    except Exception as e:
-        logging.error(f"An error occurred: {str(e)}")
-        raise
-
-
-if __name__ == "__main__":
-    main()

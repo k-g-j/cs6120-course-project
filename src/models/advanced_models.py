@@ -7,6 +7,10 @@ from sklearn.linear_model import SGDRegressor
 from sklearn.metrics import mean_squared_error, mean_absolute_error, r2_score
 from sklearn.preprocessing import StandardScaler
 
+from .cnn_model import CNNRegressor
+from .lstm_model import LSTMRegressor
+from .svr_model import SVRRegressor
+
 
 def _ensure_datetime_index(df):
     """Ensure the dataframe has a datetime index."""
@@ -14,7 +18,6 @@ def _ensure_datetime_index(df):
         if 'datetime' in df.columns:
             df.set_index('datetime', inplace=True)
         elif 'date' in df.columns:
-            # Parse with explicit format to avoid warnings
             df['datetime'] = pd.to_datetime(df['date'], format='%Y/%m/%d %I:%M:%S %p')
             df.set_index('datetime', inplace=True)
             df.drop('date', axis=1, errors='ignore', inplace=True)
@@ -29,84 +32,36 @@ class AdvancedModels:
         self.predictions = {}
         self.metrics = {}
         self.scaler = StandardScaler()
+        self.feature_cols = None
 
         # Ensure datetime index
         _ensure_datetime_index(self.train_data)
         _ensure_datetime_index(self.test_data)
 
-    def create_advanced_features(self, df):
-        """Create enhanced features including lagged and rolling features."""
-        df = df.copy()
+        # Initialize models
+        self._initialize_models()
 
-        # Ensure datetime index
-        if not isinstance(df.index, pd.DatetimeIndex):
-            _ensure_datetime_index(df)
-
-        # Basic time components
-        df['hour'] = df.index.hour
-        df['day'] = df.index.day
-        df['month'] = df.index.month
-        df['year'] = df.index.year
-        df['dayofweek'] = df.index.dayofweek
-        df['dayofyear'] = df.index.dayofyear
-
-        # Cyclical features
-        df['hour_sin'] = np.sin(2 * np.pi * df['hour'] / 24)
-        df['hour_cos'] = np.cos(2 * np.pi * df['hour'] / 24)
-        df['month_sin'] = np.sin(2 * np.pi * df['month'] / 12)
-        df['month_cos'] = np.cos(2 * np.pi * df['month'] / 12)
-        df['day_sin'] = np.sin(2 * np.pi * df['dayofyear'] / 365.25)
-        df['day_cos'] = np.cos(2 * np.pi * df['dayofyear'] / 365.25)
-
-        # Time of day features
-        df['is_daytime'] = ((df['hour'] >= 6) & (df['hour'] <= 18)).astype(int)
-        df['is_peak_sun'] = ((df['hour'] >= 10) & (df['hour'] <= 14)).astype(int)
-        df['is_weekend'] = df.index.dayofweek.isin([5, 6]).astype(int)
-
-        # Add lagged features
-        df['kWh_lag_1h'] = df[self.target_col].shift(1)
-        df['kWh_lag_24h'] = df[self.target_col].shift(24)
-        df['kWh_lag_168h'] = df[self.target_col].shift(168)  # 1 week
-
-        # Add rolling statistics
-        df['kWh_rolling_mean_24h'] = df[self.target_col].rolling(window=24, min_periods=1).mean()
-        df['kWh_rolling_std_24h'] = df[self.target_col].rolling(window=24, min_periods=1).std()
-        df['kWh_rolling_max_24h'] = df[self.target_col].rolling(window=24, min_periods=1).max()
-
-        # Handle NaN values
-        df = df.bfill().ffill()  # Use bfill followed by ffill to handle any remaining NaNs
-
-        return df
-
-    def prepare_data(self):
+    def prepare_data(self, feature_columns=None):
         """Prepare features and target variables with scaling."""
-        # Create advanced features
-        train_with_features = self.create_advanced_features(self.train_data)
-        test_with_features = self.create_advanced_features(self.test_data)
-
-        # Select features for training
-        self.feature_cols = [
-            'hour_sin', 'hour_cos', 'month_sin', 'month_cos',
-            'day_sin', 'day_cos', 'is_weekend', 'is_daytime',
-            'is_peak_sun', 'kWh_lag_1h', 'kWh_lag_24h',
-            'kWh_lag_168h', 'kWh_rolling_mean_24h',
-            'kWh_rolling_std_24h', 'kWh_rolling_max_24h'
+        # Use provided feature columns
+        self.feature_cols = feature_columns if feature_columns is not None else [
+            col for col in self.train_data.columns if col != self.target_col
         ]
 
         # Scale features
         self.X_train = pd.DataFrame(
-            self.scaler.fit_transform(train_with_features[self.feature_cols]),
+            self.scaler.fit_transform(self.train_data[self.feature_cols]),
             columns=self.feature_cols,
-            index=train_with_features.index
+            index=self.train_data.index
         )
         self.X_test = pd.DataFrame(
-            self.scaler.transform(test_with_features[self.feature_cols]),
+            self.scaler.transform(self.test_data[self.feature_cols]),
             columns=self.feature_cols,
-            index=test_with_features.index
+            index=self.test_data.index
         )
 
-        self.y_train = train_with_features[self.target_col]
-        self.y_test = test_with_features[self.target_col]
+        self.y_train = self.train_data[self.target_col]
+        self.y_test = self.test_data[self.target_col]
 
         logging.info(f"Training features shape: {self.X_train.shape}")
         logging.info(f"Training target shape: {self.y_train.shape}")
@@ -114,21 +69,9 @@ class AdvancedModels:
         # Log feature correlation with target
         self._log_feature_correlations()
 
-    def _log_feature_correlations(self):
-        """Log correlation between features and target variable."""
-        # Combine features and target for correlation calculation
-        train_data = self.X_train.copy()
-        train_data['target'] = self.y_train
-
-        # Calculate correlations with target
-        correlations = train_data.corr()['target'].drop('target').abs().sort_values(ascending=False)
-
-        logging.info("\nFeature correlations with target:")
-        logging.info(correlations)
-
-    def train_models(self):
-        """Train and evaluate advanced models with optimized parameters."""
-        models = {
+    def _initialize_models(self):
+        """Initialize all advanced models."""
+        self.models = {
             'random_forest': RandomForestRegressor(
                 n_estimators=100,
                 max_depth=10,
@@ -150,76 +93,121 @@ class AdvancedModels:
                 max_iter=1000,
                 tol=1e-3,
                 random_state=42
+            ),
+            'lstm': LSTMRegressor(
+                units=64,
+                dropout=0.2,
+                learning_rate=0.001,
+                batch_size=64,
+                epochs=20,
+                sequence_length=24
+            ),
+            'cnn': CNNRegressor(
+                filters=64,
+                kernel_size=3,
+                dropout=0.2,
+                learning_rate=0.001,
+                batch_size=64,
+                epochs=20,
+                sequence_length=24
+            ),
+            'svr': SVRRegressor(
+                kernel='rbf',
+                C=1.0,
+                epsilon=0.1,
+                gamma='scale'
             )
         }
 
-        self.models = {}
-        self.predictions = {}
+    def train_models(self):
+        """Train all advanced models."""
         metrics = {}
 
-        for name, model in models.items():
+        for name, model in self.models.items():
             logging.info(f"\nTraining {name}...")
 
             try:
-                # Get the appropriate data format
-                if name == 'linear_sgd':
-                    X_train = self.X_train.values
-                    y_train = self.y_train.values
-                    X_test = self.X_test.values
+                # Handle different data formats for different models
+                if name in ['lstm', 'cnn']:
+                    # Sequence models need special handling
+                    model.fit(self.X_train, self.y_train)
+                elif name == 'linear_sgd':
+                    # Convert both training and test data to numpy arrays
+                    X_train_array = self.X_train.values
+                    y_train_array = self.y_train.values
+                    model.fit(X_train_array, y_train_array)
                 else:
-                    X_train = self.X_train
-                    y_train = self.y_train
-                    X_test = self.X_test
-
-                # Train model
-                model.fit(X_train, y_train)
-                self.models[name] = model
+                    model.fit(self.X_train, self.y_train)
 
                 # Make predictions
-                train_pred = model.predict(X_train)
-                test_pred = model.predict(X_test)
+                predictions = self.evaluate_model(name)
 
-                # Store predictions
-                self.predictions[name] = {
-                    'train': train_pred,
-                    'test': test_pred
-                }
+                if predictions is not None:
+                    metrics[name] = self.get_metrics(name)
 
-                # Calculate metrics
-                model_metrics = {
-                    'model_name': name,
-                    'model_type': 'advanced',
-                    'rmse': np.sqrt(mean_squared_error(self.y_test, test_pred)),
-                    'mae': mean_absolute_error(self.y_test, test_pred),
-                    'r2': r2_score(self.y_test, test_pred)
-                }
+                    # Log metrics
+                    logging.info(f"\nMetrics for {name}:")
+                    for metric, value in metrics[name].items():
+                        if metric not in ['model_name', 'model_type']:
+                            logging.info(f"{metric.upper()}: {value:.4f}")
 
-                # Calculate MAPE
-                non_zero_mask = self.y_test != 0
-                if np.any(non_zero_mask):
-                    model_metrics['mape'] = np.mean(
-                        np.abs((self.y_test[non_zero_mask] - test_pred[non_zero_mask]) /
-                               self.y_test[non_zero_mask])) * 100
-
-                metrics[name] = model_metrics
-
-                # Log metrics
-                logging.info(f"\nMetrics for {name}:")
-                for metric, value in model_metrics.items():
-                    if metric not in ['model_name', 'model_type']:
-                        logging.info(f"{metric.upper()}: {value:.4f}")
-
-                # Log feature importances
-                if hasattr(model, 'feature_importances_'):
-                    self._log_feature_importances(model, name)
-                elif name == 'linear_sgd':
-                    self._log_sgd_coefficients(model)
+                    # Log feature importances
+                    if hasattr(model, 'feature_importances_'):
+                        self._log_feature_importances(model, name)
+                    elif name == 'linear_sgd':
+                        self._log_sgd_coefficients(model)
 
             except Exception as e:
-                logging.error(f"Error in {name} training: {str(e)}")
+                logging.error(f"Error training {name}: {str(e)}")
                 continue
 
         return metrics
+
+    def evaluate_model(self, model_name):
+        """Evaluate a specific model."""
+        try:
+            model = self.models[model_name]
+            if model_name == 'linear_sgd':
+                predictions = model.predict(self.X_test.values)
+            else:
+                predictions = model.predict(self.X_test)
+            return predictions
+        except Exception as e:
+            logging.error(f"Error evaluating {model_name}: {str(e)}")
+            return None
+
+    def get_metrics(self, model_name):
+        """Calculate metrics for a model."""
+        predictions = self.evaluate_model(model_name)
+        if predictions is None:
+            return None
+
+        metrics = {
+            'model_name': model_name,
+            'model_type': 'advanced',
+            'rmse': np.sqrt(mean_squared_error(self.y_test, predictions)),
+            'mae': mean_absolute_error(self.y_test, predictions),
+            'r2': r2_score(self.y_test, predictions)
+        }
+
+        # Calculate MAPE
+        non_zero_mask = self.y_test != 0
+        if np.any(non_zero_mask):
+            metrics['mape'] = np.mean(
+                np.abs((self.y_test[non_zero_mask] - predictions[non_zero_mask]) /
+                       self.y_test[non_zero_mask])) * 100
+        else:
+            metrics['mape'] = np.nan
+
+        return metrics
+
+    def _log_feature_correlations(self):
+        """Log correlation between features and target variable."""
+        train_data = self.X_train.copy()
+        train_data['target'] = self.y_train
+        correlations = train_data.corr()['target'].drop('target').abs().sort_values(ascending=False)
+        logging.info("\nFeature correlations with target:")
+        logging.info(correlations)
 
     def _log_sgd_coefficients(self, model):
         """Log feature coefficients for SGD model."""

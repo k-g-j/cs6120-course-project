@@ -6,41 +6,38 @@ from sklearn.model_selection import TimeSeriesSplit
 
 
 class StackedEnsembleRegressor(BaseEstimator, RegressorMixin):
-    """
-    Stacked ensemble model combining Random Forest, Gradient Boosting
-    with LassoCV meta-learner. Modified for time series data.
-    """
+    """Stacked ensemble combining multiple models with meta-learner."""
 
     def __init__(self, n_folds=5):
         self.n_folds = n_folds
 
-        # Base models with reduced complexity
+        # Base models
         self.rf = RandomForestRegressor(
-            n_estimators=50,  # Reduced from 100
-            max_depth=8,
+            n_estimators=100,
+            max_depth=10,
             min_samples_leaf=5,
             random_state=42,
             n_jobs=-1
         )
 
         self.gb = GradientBoostingRegressor(
-            n_estimators=50,  # Reduced from 100
-            max_depth=4,
+            n_estimators=100,
+            max_depth=5,
             learning_rate=0.1,
             random_state=42
         )
 
         # Meta-learner
         self.meta_learner = LassoCV(
-            cv=3,  # Reduced from 5
+            cv=3,
             random_state=42,
-            max_iter=200
+            max_iter=1000
         )
 
         self.base_models = [self.rf, self.gb]
 
     def fit(self, X, y):
-        """Fit the stacked ensemble using time series cross-validation."""
+        """Fit ensemble using time series cross-validation."""
         # Initialize arrays for meta-features
         n_samples = X.shape[0]
         n_models = len(self.base_models)
@@ -54,7 +51,6 @@ class StackedEnsembleRegressor(BaseEstimator, RegressorMixin):
             X_train, X_val = X.iloc[train_idx], X.iloc[val_idx]
             y_train, y_val = y.iloc[train_idx], y.iloc[val_idx]
 
-            # Train each base model and collect predictions
             for i, model in enumerate(self.base_models):
                 model.fit(X_train, y_train)
                 meta_features[val_idx, i] = model.predict(X_val)
@@ -70,14 +66,8 @@ class StackedEnsembleRegressor(BaseEstimator, RegressorMixin):
 
     def predict(self, X):
         """Generate predictions using the stacked ensemble."""
-        # Generate predictions from base models
         meta_features = np.column_stack([
             model.predict(X) for model in self.base_models
         ])
 
-        # Generate final predictions using meta-learner
         return self.meta_learner.predict(meta_features)
-
-    def get_feature_importance(self):
-        """Get feature importance from Random Forest model."""
-        return self.rf.feature_importances_
