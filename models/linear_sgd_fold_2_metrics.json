@@ -1,9 +1,1 @@
-{
-  "model_name": "linear_sgd",
-  "model_type": "advanced",
-  "rmse": 0.9614803278,
-  "mae": 0.5857608915,
-  "r2": 0.2456815699,
-  "mape": 187.8949061212,
-  "fold": 2
-}
+{"model_name":"linear_sgd","model_type":"advanced","rmse":0.9621175471,"mae":0.5887281343,"r2":0.2446813923,"mape":192.1204286264,"fold":2}

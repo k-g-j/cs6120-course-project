@@ -41,6 +41,10 @@ class AdvancedModels:
         # Initialize models
         self._initialize_models()
 
+        # Set memory-efficient parameters
+        if 'random_forest' in self.models:
+            self.models['random_forest'].set_params(n_jobs=2)
+
     def prepare_data(self, feature_columns=None):
         """Prepare features and target variables with scaling."""
         # Use provided feature columns
@@ -120,34 +124,39 @@ class AdvancedModels:
         }
 
     def train_models(self):
-        """Train all advanced models."""
-        metrics = {}
+        """Train all advanced models with memory management."""
+        model_metrics = {}
+        import gc
 
         for name, model in self.models.items():
+            # Clear memory before training each model
+            gc.collect()
+
             logging.info(f"\nTraining {name}...")
 
             try:
-                # Handle different data formats for different models
                 if name in ['lstm', 'cnn']:
-                    # Sequence models need special handling
+                    # Set smaller batch size for deep learning models
+                    model.batch_size = 32
+                    model.epochs = 10  # Reduce epochs
                     model.fit(self.X_train, self.y_train)
                 elif name == 'linear_sgd':
-                    # Convert both training and test data to numpy arrays
                     X_train_array = self.X_train.values
                     y_train_array = self.y_train.values
                     model.fit(X_train_array, y_train_array)
                 else:
                     model.fit(self.X_train, self.y_train)
 
-                # Make predictions
+                # Make predictions and get metrics
                 predictions = self.evaluate_model(name)
 
                 if predictions is not None:
-                    metrics[name] = self.get_metrics(name)
+                    metrics = self.get_metrics(name)
+                    model_metrics[name] = metrics
 
                     # Log metrics
                     logging.info(f"\nMetrics for {name}:")
-                    for metric, value in metrics[name].items():
+                    for metric, value in metrics.items():
                         if metric not in ['model_name', 'model_type']:
                             logging.info(f"{metric.upper()}: {value:.4f}")
 
@@ -157,11 +166,15 @@ class AdvancedModels:
                     elif name == 'linear_sgd':
                         self._log_sgd_coefficients(model)
 
+                    # Clear memory
+                    del predictions
+                    gc.collect()
+
             except Exception as e:
                 logging.error(f"Error training {name}: {str(e)}")
                 continue
 
-        return metrics
+        return model_metrics
 
     def evaluate_model(self, model_name):
         """Evaluate a specific model."""
@@ -175,31 +188,6 @@ class AdvancedModels:
         except Exception as e:
             logging.error(f"Error evaluating {model_name}: {str(e)}")
             return None
-
-    def get_metrics(self, model_name):
-        """Calculate metrics for a model."""
-        predictions = self.evaluate_model(model_name)
-        if predictions is None:
-            return None
-
-        metrics = {
-            'model_name': model_name,
-            'model_type': 'advanced',
-            'rmse': np.sqrt(mean_squared_error(self.y_test, predictions)),
-            'mae': mean_absolute_error(self.y_test, predictions),
-            'r2': r2_score(self.y_test, predictions)
-        }
-
-        # Calculate MAPE
-        non_zero_mask = self.y_test != 0
-        if np.any(non_zero_mask):
-            metrics['mape'] = np.mean(
-                np.abs((self.y_test[non_zero_mask] - predictions[non_zero_mask]) /
-                       self.y_test[non_zero_mask])) * 100
-        else:
-            metrics['mape'] = np.nan
-
-        return metrics
 
     def _log_feature_correlations(self):
         """Log correlation between features and target variable."""
@@ -228,6 +216,32 @@ class AdvancedModels:
 
         logging.info("\nFeature importances:")
         logging.info(feature_importance)
+
+    def get_metrics(self, model_name):
+        """Calculate metrics for a model."""
+
+        predictions = self.evaluate_model(model_name)
+        if predictions is None:
+            return None
+
+        metrics = {
+            'model_name': model_name,
+            'model_type': 'advanced',
+            'rmse': np.sqrt(mean_squared_error(self.y_test, predictions)),
+            'mae': mean_absolute_error(self.y_test, predictions),
+            'r2': r2_score(self.y_test, predictions)
+        }
+
+        # Calculate MAPE
+        non_zero_mask = self.y_test != 0
+        if np.any(non_zero_mask):
+            metrics['mape'] = np.mean(
+                np.abs((self.y_test[non_zero_mask] - predictions[non_zero_mask]) /
+                       self.y_test[non_zero_mask])) * 100
+        else:
+            metrics['mape'] = np.nan
+
+        return metrics
 
 
 class PreprocessedData:

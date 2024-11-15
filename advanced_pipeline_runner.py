@@ -125,6 +125,10 @@ def train_advanced_pipeline(solar_data, config):
 
 def main():
     """Run the complete advanced pipeline."""
+    # Set worker timeout
+    import multiprocessing
+    multiprocessing.set_start_method('spawn', force=True)
+
     config = AdvancedPipelineConfig()
     setup_advanced_logging(config)
 

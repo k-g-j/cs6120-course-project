@@ -3,42 +3,39 @@ from typing import Dict, Any, Tuple
 
 import numpy as np
 import pandas as pd
-from sklearn.metrics import make_scorer, mean_squared_error, r2_score
-from sklearn.model_selection import TimeSeriesSplit, GridSearchCV
+from sklearn.metrics import make_scorer, r2_score, mean_squared_error
+from sklearn.model_selection import RandomizedSearchCV, TimeSeriesSplit
 
 
 def get_hyperparameter_grids():
-    """Define hyperparameter grids for all models."""
+    """Define reduced hyperparameter grids for model tuning."""
     return {
         'random_forest': {
-            'n_estimators': [100, 200, 300],
-            'max_depth': [10, 15, 20, None],
-            'min_samples_split': [2, 5, 10],
-            'min_samples_leaf': [1, 2, 4],
-            'max_features': ['sqrt', 'log2', None],
-            'bootstrap': [True, False]
+            'n_estimators': [50, 100],
+            'max_depth': [10],
+            'min_samples_split': [2],
+            'min_samples_leaf': [1],
+            'max_features': ['sqrt']
         },
         'gradient_boosting': {
-            'n_estimators': [100, 200, 300],
-            'max_depth': [3, 5, 7],
-            'learning_rate': [0.01, 0.05, 0.1],
-            'subsample': [0.8, 0.9, 1.0],
-            'min_samples_split': [2, 5, 10],
-            'min_samples_leaf': [1, 2, 4]
+            'n_estimators': [100],
+            'max_depth': [3],
+            'learning_rate': [0.05],
+            'subsample': [0.8],
+            'min_samples_split': [2]
         },
         'linear_sgd': {
-            'alpha': [0.0001, 0.001, 0.01],
-            'l1_ratio': [0.15, 0.5, 0.85],
-            'penalty': ['l2', 'l1', 'elasticnet'],
-            'max_iter': [1000, 2000],
-            'tol': [1e-4, 1e-3]
+            'alpha': [0.0001],
+            'l1_ratio': [0.15],
+            'penalty': ['elasticnet'],
+            'max_iter': [1000],
+            'tol': [1e-3]
         },
         'lstm': {
-            'units': [32, 64, 128],
-            'dropout': [0.1, 0.2, 0.3],
-            'batch_size': [32, 64, 128],
-            'learning_rate': [0.001, 0.0005, 0.0001],
-            'sequence_length': [24, 48, 72]
+            'units': [32],
+            'dropout': [0.1],
+            'batch_size': [32],
+            'learning_rate': [0.001]
         }
     }
 
@@ -53,26 +50,10 @@ def tune_model_hyperparameters(
         param_grid: Dict[str, Any],
         X: Any,
         y: Any,
-        cv: int = 5,
+        cv: int = 3,
         n_iter: int = 10
 ) -> Tuple[Any, Dict[str, Any], float]:
-    """
-    Tune model hyperparameters using time series cross-validation.
-
-    Args:
-        model: Model instance to tune
-        param_grid: Dictionary of parameters to tune
-        X: Training features
-        y: Target variable
-        cv: Number of cross-validation folds
-        n_iter: Number of iterations for randomized search
-
-    Returns:
-        Tuple containing:
-        - Best model
-        - Best parameters
-        - Best score
-    """
+    """Tune model hyperparameters using RandomizedSearchCV."""
     try:
         # Set up time series cross-validation
         tscv = TimeSeriesSplit(n_splits=cv)
@@ -83,34 +64,51 @@ def tune_model_hyperparameters(
             'r2': make_scorer(r2_score)
         }
 
-        # Configure grid search
-        grid_search = GridSearchCV(
+        # Calculate parameter combinations
+        n_params = np.product([len(v) for v in param_grid.values()])
+        n_iter = min(n_iter, n_params)
+
+        # Configure randomized search with memory-efficient settings
+        random_search = RandomizedSearchCV(
             estimator=model,
-            param_grid=param_grid,
+            param_distributions=param_grid,
+            n_iter=n_iter,
             cv=tscv,
             scoring=scoring,
             refit='r2',
-            n_jobs=-1,
+            n_jobs=2,  # Limit parallel jobs
             verbose=1,
-            return_train_score=True
+            random_state=42,
+            return_train_score=True,
+            pre_dispatch='2*n_jobs',  # Limit number of pre-dispatched jobs
+            error_score='raise'
         )
 
-        # Fit grid search
+        # Clear memory before fitting
+        import gc
+        gc.collect()
+
+        # Fit random search
         logging.info("Starting hyperparameter tuning...")
-        grid_search.fit(X, y)
+        random_search.fit(X, y)
 
         # Log results
-        logging.info(f"Best parameters: {grid_search.best_params_}")
-        logging.info(f"Best R² score: {grid_search.best_score_:.4f}")
+        logging.info(f"Best parameters: {random_search.best_params_}")
+        logging.info(f"Best R² score: {random_search.best_score_:.4f}")
 
-        # Save detailed CV results
-        cv_results = pd.DataFrame(grid_search.cv_results_)
-        cv_results.to_csv('model_results/hyperparameter_tuning/cv_results.csv', index=False)
+        # Get best estimator and clear memory
+        best_estimator = random_search.best_estimator_
+        best_params = random_search.best_params_
+        best_score = random_search.best_score_
 
-        return grid_search.best_estimator_, grid_search.best_params_, grid_search.best_score_
+        del random_search
+        gc.collect()
+
+        return best_estimator, best_params, best_score
 
     except Exception as e:
         logging.error(f"Error in hyperparameter tuning: {str(e)}")
+        return None, None, None
         raise
 
 

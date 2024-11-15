@@ -1,4 +1,5 @@
 import logging
+from pathlib import Path
 
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
@@ -10,7 +11,7 @@ from src.visualization.model_evaluation import create_visualizations, save_model
 
 
 def train_and_evaluate_advanced_models(data, config, param_grids):
-    """Train and evaluate advanced models with hyperparameter tuning."""
+    """Train and evaluate advanced models with checkpointing."""
     logging.info("Starting advanced model training with hyperparameter tuning...")
 
     # Create features using FeatureEngineer
@@ -26,7 +27,10 @@ def train_and_evaluate_advanced_models(data, config, param_grids):
     feature_importance_data = None
 
     for fold, (train_idx, test_idx) in enumerate(tscv.split(processed_data), 1):
-        logging.info(f"Training fold {fold}/5...")
+        # Add checkpoint file
+        checkpoint_file = Path(config.CHECKPOINT_DIR) / f'fold_{fold}_checkpoint.pkl'
+        fold_metrics = []
+        fold_predictions = []
 
         try:
             # Split data
@@ -38,69 +42,88 @@ def train_and_evaluate_advanced_models(data, config, param_grids):
             advanced.prepare_data(feature_columns=feature_sets['base'])
 
             # Train models first
-            fold_metrics = advanced.train_models()
+            model_metrics = advanced.train_models()
 
-            if not fold_metrics:
+            if not model_metrics:
                 logging.warning(f"No models trained successfully in fold {fold}")
                 continue
 
-            # Tune hyperparameters for trained models
-            for model_name in fold_metrics.keys():
+            # Tune hyperparameters for trained models that have parameter grids
+            for model_name, metrics in model_metrics.items():
                 if model_name in param_grids:
                     logging.info(f"\nTuning {model_name}...")
                     param_grid = param_grids[model_name]
 
-                    # Tune hyperparameters
-                    best_model_fold, best_params, best_score = tune_model_hyperparameters(
-                        advanced.models[model_name],
-                        param_grid,
-                        advanced.X_train,
-                        advanced.y_train,
-                        cv=3
-                    )
+                    try:
+                        current_model = advanced.models[
+                            model_name]  # Get the current model instance
+                        # Tune hyperparameters
+                        best_model_fold, best_params, best_score = tune_model_hyperparameters(
+                            current_model,
+                            param_grid,
+                            advanced.X_train,
+                            advanced.y_train,
+                            cv=3
+                        )
 
-                    if best_model_fold is not None:
-                        logging.info(f"Best parameters for {model_name}: {best_params}")
+                        if best_model_fold is not None:
+                            logging.info(f"Best parameters for {model_name}: {best_params}")
 
-                        # Update model and get new predictions
-                        advanced.models[model_name] = best_model_fold
-                        predictions = advanced.evaluate_model(model_name)
+                            # Update model and get new predictions
+                            advanced.models[model_name] = best_model_fold
+                            predictions = advanced.evaluate_model(model_name)
 
-                        if predictions is not None:
-                            # Get updated metrics
-                            metrics = advanced.get_metrics(model_name)
-                            metrics['fold'] = fold
-                            all_metrics.append(metrics)
+                            if predictions is not None:
+                                # Get updated metrics
+                                new_metrics = advanced.get_metrics(model_name)
+                                new_metrics['fold'] = fold
+                                fold_metrics.append(new_metrics)
 
-                            # Save model artifacts
-                            save_model_artifacts(
-                                best_model_fold,
-                                model_name,
-                                fold,
-                                metrics,
-                                output_dir=str(config.MODEL_DIR)
-                            )
+                                # Save model artifacts
+                                save_model_artifacts(
+                                    best_model_fold,
+                                    model_name,
+                                    fold,
+                                    new_metrics,
+                                    output_dir=str(config.MODEL_DIR)
+                                )
 
-                            # Track best model
-                            if metrics['r2'] > best_r2:
-                                best_r2 = metrics['r2']
-                                best_model = (model_name, best_model_fold)
+                                # Track best model
+                                if new_metrics['r2'] > best_r2:
+                                    best_r2 = new_metrics['r2']
+                                    best_model = (model_name, best_model_fold)
 
-                                if hasattr(best_model_fold, 'feature_importances_'):
-                                    feature_importance_data = pd.DataFrame({
-                                        'feature': advanced.feature_cols,
-                                        'importance': best_model_fold.feature_importances_
-                                    })
+                                    if hasattr(best_model_fold, 'feature_importances_'):
+                                        feature_importance_data = pd.DataFrame({
+                                            'feature': advanced.feature_cols,
+                                            'importance': best_model_fold.feature_importances_
+                                        })
 
-                            # Collect predictions
-                            predictions_df = pd.DataFrame({
-                                'timestamp': test_data.index,
-                                'actual': advanced.y_test,
-                                'predicted': predictions,
-                                'model': model_name,
-                                'fold': fold
-                            })
-                            all_predictions.append(predictions_df)
+                                # Collect predictions
+                                pred_df = pd.DataFrame({
+                                    'timestamp': test_data.index,
+                                    'actual': advanced.y_test,
+                                    'predicted': predictions,
+                                    'model': model_name,
+                                    'fold': fold
+                                })
+                                fold_predictions.append(pred_df)
+
+                    except Exception as e:
+                        logging.error(f"Error tuning {model_name}: {str(e)}")
+                        continue
+
+            # Save checkpoint after successful fold
+            if fold_metrics and fold_predictions:
+                all_metrics.extend(fold_metrics)
+                all_predictions.extend(fold_predictions)
+                checkpoint_data = {
+                    'metrics': fold_metrics,
+                    'predictions': fold_predictions,
+                    'best_model': best_model
+                }
+                pd.to_pickle(checkpoint_data, checkpoint_file)
+                logging.info(f"Saved checkpoint for fold {fold}")
 
         except Exception as e:
             logging.error(f"Error in fold {fold}: {str(e)}")
@@ -109,10 +132,8 @@ def train_and_evaluate_advanced_models(data, config, param_grids):
     if not all_metrics:
         raise ValueError("No models were successfully trained")
 
-    # Create metrics DataFrame
+    # Create metrics DataFrame and combine predictions
     metrics_df = pd.DataFrame(all_metrics)
-
-    # Combine predictions
     predictions_df = pd.concat(all_predictions, ignore_index=True)
     predictions_df['timestamp'] = pd.to_datetime(predictions_df['timestamp'])
     predictions_df.set_index('timestamp', inplace=True)
