@@ -3,10 +3,15 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
+from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
+from sklearn.linear_model import SGDRegressor
 from sklearn.model_selection import TimeSeriesSplit
 
 from src.models.advanced_models import AdvancedModels
+from src.models.cnn_model import CNNRegressor
 from src.models.feature_engineering import FeatureEngineer
+from src.models.lstm_model import LSTMRegressor
+from src.models.svr_model import SVRRegressor
 from src.visualization.model_evaluation import create_visualizations
 
 
@@ -14,6 +19,7 @@ class AblationStudy:
     """Conduct comprehensive ablation studies on the solar prediction models."""
 
     def __init__(self, data, config):
+        """Initialize ablation study with data and configuration."""
         self.data = data.copy()
         self.config = config
         self.feature_engineer = FeatureEngineer()
@@ -27,6 +33,111 @@ class AblationStudy:
                 self.data['datetime'] = pd.to_datetime(self.data['date'])
                 self.data.set_index('datetime', inplace=True)
                 self.data.drop('date', axis=1, errors='ignore', inplace=True)
+
+        # Pre-filter non-numeric columns
+        numeric_cols = self.data.select_dtypes(include=['float64', 'int64']).columns
+        self.data = self.data[list(numeric_cols)]
+
+        logging.info(f"Using numeric columns: {list(numeric_cols)}")
+
+    def _initialize_models(self):
+        """Initialize all models."""
+        # Initialize models based on computational efficiency
+        sample_size = len(self.data)
+        logging.info(f"Initializing models for dataset size: {sample_size}")
+
+        # For datasets larger than 50k samples, use efficient models only
+        if sample_size > 50000:
+            logging.info("Using efficient models only due to large dataset size")
+            self.models = {
+                'random_forest': RandomForestRegressor(
+                    n_estimators=50,  # Reduced estimators
+                    max_depth=8,
+                    min_samples_leaf=10,
+                    random_state=42,
+                    n_jobs=-1
+                ),
+                'gradient_boosting': GradientBoostingRegressor(
+                    n_estimators=50,
+                    max_depth=5,
+                    learning_rate=0.1,
+                    random_state=42
+                ),
+                'linear_sgd': SGDRegressor(
+                    loss='squared_error',
+                    penalty='l2',
+                    alpha=0.0001,
+                    max_iter=1000,
+                    tol=1e-3,
+                    random_state=42
+                ),
+                'lstm': LSTMRegressor(
+                    units=32,
+                    dropout=0.2,
+                    learning_rate=0.001,
+                    batch_size=128,
+                    epochs=10,
+                    sequence_length=24
+                ),
+                'cnn': CNNRegressor(
+                    filters=32,
+                    kernel_size=3,
+                    dropout=0.2,
+                    learning_rate=0.001,
+                    batch_size=128,
+                    epochs=10,
+                    sequence_length=24
+                )
+            }
+        else:
+            # For smaller datasets, include SVR
+            logging.info("Including all models including SVR for smaller dataset")
+            self.models = {
+                'random_forest': RandomForestRegressor(
+                    n_estimators=100,
+                    max_depth=10,
+                    min_samples_leaf=5,
+                    random_state=42,
+                    n_jobs=-1
+                ),
+                'gradient_boosting': GradientBoostingRegressor(
+                    n_estimators=100,
+                    max_depth=5,
+                    learning_rate=0.1,
+                    random_state=42
+                ),
+                'linear_sgd': SGDRegressor(
+                    loss='squared_error',
+                    penalty='l2',
+                    alpha=0.0001,
+                    max_iter=1000,
+                    tol=1e-3,
+                    random_state=42
+                ),
+                'svr': SVRRegressor(
+                    kernel='rbf',
+                    C=1.0,
+                    epsilon=0.1,
+                    gamma='scale'
+                ),
+                'lstm': LSTMRegressor(
+                    units=64,
+                    dropout=0.2,
+                    learning_rate=0.001,
+                    batch_size=64,
+                    epochs=20,
+                    sequence_length=24
+                ),
+                'cnn': CNNRegressor(
+                    filters=64,
+                    kernel_size=3,
+                    dropout=0.2,
+                    learning_rate=0.001,
+                    batch_size=64,
+                    epochs=20,
+                    sequence_length=24
+                )
+            }
 
     def run_input_dimension_ablation(self):
         """Study impact of different input features."""
@@ -58,6 +169,17 @@ class AblationStudy:
             results.append(metrics)
 
         return pd.DataFrame(results)
+
+    def _preprocess_data(self, processed_data):
+        """Preprocess data by removing non-numeric columns and handling missing values."""
+        # Get only numeric columns
+        numeric_cols = processed_data.select_dtypes(include=['float64', 'int64']).columns
+        data = processed_data[numeric_cols].copy()
+
+        # Handle missing values
+        data = data.fillna(data.mean())
+
+        return data
 
     def run_preprocessing_ablation(self):
         """Study impact of different preprocessing steps."""
@@ -130,6 +252,9 @@ class AblationStudy:
         """Evaluate model performance with different preprocessing settings."""
         processed_data = self.data.copy()
 
+        # Always filter out non-numeric columns first
+        processed_data = self._preprocess_data(processed_data)
+
         if settings['engineer_features']:
             processed_data = self.feature_engineer.create_all_features(processed_data)
 
@@ -175,9 +300,11 @@ class AblationStudy:
 
     def _evaluate_data_fraction(self, fraction):
         """Evaluate model performance with different amounts of training data."""
-        # If the dataset is very large, take a sample first
-        if len(self.data) > 100000:
-            sample_size = int(100000 * fraction)
+        # For very large datasets, take a smaller sample first
+        max_sample_size = 50000  # Reduced from 100000
+
+        if len(self.data) > max_sample_size:
+            sample_size = int(max_sample_size * fraction)
             sampled_data = self.data.sample(n=sample_size, random_state=42)
             processed_data = self.feature_engineer.create_all_features(sampled_data)
         else:
