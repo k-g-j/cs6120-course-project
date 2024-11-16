@@ -257,6 +257,12 @@ class AblationStudy:
 
         if settings['engineer_features']:
             processed_data = self.feature_engineer.create_all_features(processed_data)
+            feature_cols = self.feature_engineer.get_feature_sets()['all']
+        else:
+            # Use basic numeric columns if not engineering features
+            feature_cols = list(processed_data.columns)
+            if 'kWh' in feature_cols:  # Remove target column from features
+                feature_cols.remove('kWh')
 
         tscv = TimeSeriesSplit(n_splits=3)
         scores = []
@@ -266,9 +272,19 @@ class AblationStudy:
             test_data = processed_data.iloc[test_idx]
 
             model = AdvancedModels(train_data, test_data, target_col='kWh')
+            model.feature_cols = feature_cols  # Set feature columns explicitly
+
             if not settings['scale']:
+                # Handle case where no scaling is needed
                 model.scaler = None
-            model.prepare_data()
+                # Prepare data without scaling
+                model.X_train = model.train_data[model.feature_cols].values
+                model.X_test = model.test_data[model.feature_cols].values
+                model.y_train = model.train_data[model.target_col].values
+                model.y_test = model.test_data[model.target_col].values
+            else:
+                # Use normal data preparation with scaling
+                model.prepare_data()
 
             metrics = model.train_models()
             scores.append(metrics)
