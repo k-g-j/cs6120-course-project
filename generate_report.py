@@ -1,9 +1,8 @@
 import logging
 from datetime import datetime
 
-from src.comprehensive_report import generate_comprehensive_report
-
 from pipeline_runner import PipelineConfig
+from src.comprehensive_report import generate_comprehensive_report
 
 
 def setup_logging(config):
