@@ -20,16 +20,25 @@ class SVRRegressor(BaseEstimator, RegressorMixin):
 
     def fit(self, X, y):
         """Fit SVR model with scaled features and subsampling for large datasets."""
+        # Convert to numpy array if needed
+        if hasattr(X, 'values'):
+            X = X.values
+        if hasattr(y, 'values'):
+            y = y.values
+
         # Subsample if dataset is too large
         if len(X) > self.max_samples:
             logging.info(
                 f"Subsampling SVR training data from {len(X)} to {self.max_samples} samples")
             indices = np.random.choice(len(X), self.max_samples, replace=False)
-            X = X[indices]
-            y = y[indices]
+            X_sampled = X[indices]
+            y_sampled = y[indices]
+        else:
+            X_sampled = X
+            y_sampled = y
 
         # Scale features
-        X_scaled = self.scaler.fit_transform(X)
+        X_scaled = self.scaler.fit_transform(X_sampled)
 
         # Initialize and train model
         self.model = SVR(
@@ -39,10 +48,12 @@ class SVRRegressor(BaseEstimator, RegressorMixin):
             gamma=self.gamma
         )
 
-        self.model.fit(X_scaled, y)
+        self.model.fit(X_scaled, y_sampled)
         return self
 
     def predict(self, X):
         """Generate predictions with scaled features."""
+        if hasattr(X, 'values'):
+            X = X.values
         X_scaled = self.scaler.transform(X)
         return self.model.predict(X_scaled)

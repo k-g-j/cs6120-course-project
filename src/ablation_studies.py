@@ -4,6 +4,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
+from sklearn.preprocessing import StandardScaler
 
 from src.models.advanced_models import AdvancedModels
 from src.models.feature_engineering import FeatureEngineer
@@ -171,9 +172,28 @@ class AblationStudy:
             test_data = processed_data.iloc[test_idx]
 
             model = AdvancedModels(train_data, test_data, target_col='kWh')
-            if not settings['scale']:
-                model.scaler = None
-            model.prepare_data(feature_columns=feature_cols)
+            # Initialize scaler based on settings
+            model.scaler = StandardScaler() if settings['scale'] else None
+            # Set feature columns
+            model.feature_cols = feature_cols
+            # Prepare data
+            if settings['scale'] and model.scaler is not None:
+                model.X_train = pd.DataFrame(
+                    model.scaler.fit_transform(model.train_data[feature_cols]),
+                    columns=feature_cols,
+                    index=model.train_data.index
+                )
+                model.X_test = pd.DataFrame(
+                    model.scaler.transform(model.test_data[feature_cols]),
+                    columns=feature_cols,
+                    index=model.test_data.index
+                )
+            else:
+                model.X_train = model.train_data[feature_cols]
+                model.X_test = model.test_data[feature_cols]
+
+            model.y_train = model.train_data[model.target_col]
+            model.y_test = model.test_data[model.target_col]
 
             metrics = model.train_models()
             scores.append(metrics)
