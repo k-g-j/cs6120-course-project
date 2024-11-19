@@ -2,150 +2,149 @@
 
 ```
 cs6120-course-project/
-├── data/                             # Raw data directory
-│   └── solar_data/                   # Solar production data
-├── docs/                             # Documentation
-├── literature/                       # Research papers and references
-├── logs/                            # Log files
-│   ├── advanced_pipeline_*.log      # Advanced pipeline logs
-│   └── pipeline_*.log               # Basic pipeline logs
-├── results/                         # Model results and metrics
-│   ├── hyperparameter_tuning/       # Hyperparameter tuning results
-│   │   ├── ensemble_tuning.csv      # Ensemble model tuning results
-│   │   └── cv_results.csv           # Cross-validation results
-│   └── final_model_metrics.csv      # Combined final model metrics
+├── data/                              # Raw data directory
+│   └── solar_data/                    # Solar production data
+├── logs/                             # Log files
+│   ├── advanced_pipeline_*.log       # Advanced pipeline logs
+│   ├── pipeline_*.log                # Basic pipeline logs
+│   ├── ablation_studies_*.log        # Ablation studies logs
+│   └── final_analysis_*.log          # Final analysis logs
+├── results/                          # Model results and metrics
+│   ├── ablation_studies/             # Ablation study results
+│   │   ├── data_volume_results.csv   # Data volume impact study
+│   │   ├── input_dimension_results.csv # Feature importance study
+│   │   ├── preprocessing_results.csv  # Preprocessing impact study
+│   │   ├── temporal_resolution_results.csv # Time resolution study
+│   │   └── ablation_summary.csv      # Summary of all studies
+│   ├── ensemble/                     # Ensemble model results
+│   │   ├── ensemble_metrics.csv      # Ensemble performance metrics
+│   │   └── ensemble_predictions.csv  # Ensemble predictions
+│   ├── model_metrics.csv            # Combined model metrics
+│   └── final_model_metrics.csv      # Final performance metrics
 ├── models/                          # Saved model files
-│   ├── deep_learning/              # Deep learning model files
-│   │   ├── lstm_*.h5               # LSTM model files
-│   │   └── cnn_*.h5                # CNN model files
-│   ├── ensemble/                   # Ensemble model files
+│   ├── ensemble/                    # Ensemble model files
 │   │   └── stacked_ensemble_*.joblib # Stacked ensemble models
-│   ├── checkpoints/                # Model checkpoints
 │   └── baseline/                   # Baseline model files
 │       ├── linear_regression_*.joblib
 │       ├── ridge_*.joblib
 │       └── lasso_*.joblib
 ├── processed_data/                  # Preprocessed datasets
-│   └── solar_production/           # Processed solar data
 ├── reports/                         # Generated reports
-│   └── model_evaluation_report.md   # Model evaluation report
+│   ├── model_evaluation_report.md   # Model evaluation report
+│   ├── final_analysis_report.md     # Final analysis report
+│   └── comprehensive_report.md      # Comprehensive evaluation
 ├── src/                            # Source code
+│   ├── final_analysis/             # Final analysis modules
+│   │   ├── __init__.py
+│   │   ├── analysis_compiler.py    # Results compilation
+│   │   └── visualization_generator.py # Visualization generation
 │   ├── models/                     # Model implementations
 │   │   ├── __init__.py
-│   │   ├── advanced_ensemble.py    # Stacked ensemble implementation
+│   │   ├── advanced_ensemble.py    # Advanced ensemble model
 │   │   ├── advanced_models.py      # Advanced ML models
-│   │   ├── cnn_model.py           # CNN model implementation
-│   │   ├── lstm_model.py          # LSTM model implementation
-│   │   ├── svr_model.py           # SVR model implementation
-│   │   ├── feature_engineering.py  # Feature engineering utilities
-│   │   └── hyperparameter_tuning.py # Hyperparameter tuning utilities
+│   │   ├── baseline_models.py      # Baseline models
+│   │   ├── feature_engineering.py  # Feature engineering
+│   │   └── hyperparameter_tuning.py # Hyperparameter tuning
 │   ├── visualization/              # Visualization utilities
 │   │   ├── __init__.py
 │   │   └── model_evaluation.py     # Model evaluation plots
 │   ├── __init__.py
+│   ├── ablation_studies.py         # Ablation study implementation
 │   ├── data_preprocessing.py       # Data preprocessing pipeline
 │   ├── train_advanced_models.py    # Advanced model training
 │   ├── train_ensemble.py          # Ensemble model training
-│   ├── train_lstm.py             # LSTM model training
 │   └── train_models.py           # Baseline model training
 ├── visualizations/                  # Generated plots and figures
-│   ├── model_comparison/           # Model comparison plots
-│   │   ├── performance_comparison.png
-│   │   └── feature_importance.png
-│   ├── error_analysis/            # Error analysis plots
-│   │   ├── error_distribution.png
-│   │   └── residual_plots.png
-│   └── time_series/               # Time series plots
-│       ├── actual_vs_predicted.png
-│       └── forecast_plots.png
+│   ├── ensemble/                   # Ensemble visualizations
+│   │   ├── ensemble_performance.png
+│   │   ├── prediction_scatter.png
+│   │   └── model_weights.png
+│   ├── ablation/                  # Ablation study plots
+│   │   ├── data_volume_impact.png
+│   │   ├── feature_importance.png
+│   │   └── preprocessing_impact.png
+│   └── final_analysis/            # Final analysis plots
+│       ├── model_comparison.png
+│       ├── performance_distributions.png
+│       └── summary_dashboard.png
 ├── .gitignore                      # Git ignore file
 ├── config.py                       # Configuration settings
 ├── pipeline_runner.py              # Basic pipeline runner
-├── advanced_pipeline_runner.py     # Advanced pipeline runner
-└── project_structure.md            # This file
+├── run_ablation_studies.py         # Ablation study runner
+├── run_ensemble_evaluation.py      # Ensemble evaluation runner
+├── run_final_analysis.py          # Final analysis runner
+└── README.md                      # Project documentation
+
 ```
 
 ## Directory Descriptions
 
 ### Core Directories
 
-- **src/**: Source code containing all model implementations and utilities
-    - **models/**: Model implementations including advanced, ensemble, and deep learning
-    - **visualization/**: Visualization utilities for model evaluation
-- **models/**: Saved model files organized by model type
-    - **deep_learning/**: LSTM and CNN models
-    - **ensemble/**: Stacked ensemble models
-    - **baseline/**: Basic regression models
-- **results/**: Model performance metrics and tuning results
-- **logs/**: Pipeline execution logs with timestamps
+- **src/**: Source code containing all implementations
+    - **final_analysis/**: Final analysis and report generation
+    - **models/**: Model implementations
+    - **visualization/**: Visualization utilities
+- **results/**: Model and analysis results
+    - **ablation_studies/**: Ablation study results
+    - **ensemble/**: Ensemble model results
 
-### Documentation and References
+### Analysis and Reports
 
-- **docs/**: Project documentation
 - **reports/**: Generated analysis reports
-- **literature/**: Research papers and references
-
-### Data Management
-
-- **data/**: Raw data storage
-- **processed_data/**: Preprocessed and cleaned datasets
-- **results/**: Model performance metrics and analysis
-    - **hyperparameter_tuning/**: Tuning results for different models
-    - **final_model_metrics.csv**: Combined performance metrics
-
-### Visualization Outputs
-
 - **visualizations/**: Generated plots and figures
-    - **model_comparison/**: Performance comparison visualizations
-    - **error_analysis/**: Error distribution and residual plots
-    - **time_series/**: Time series specific visualizations
+    - **ensemble/**: Ensemble-specific visualizations
+    - **ablation/**: Ablation study visualizations
+    - **final_analysis/**: Final analysis plots
 
-### Pipeline and Configuration
+### Pipeline Components
 
-- **config.py**: Global configuration settings
-- **pipeline_runner.py**: Basic pipeline orchestration
-- **advanced_pipeline_runner.py**: Advanced model pipeline orchestration
-- **.gitignore**: Git ignore patterns
+1. Data Processing:
+    - Data preprocessing
+    - Feature engineering
+    - Data validation
 
-## Project Components
+2. Model Training:
+    - Baseline models
+    - Advanced models
+    - Ensemble models
 
-### Model Types
+3. Analysis:
+    - Ablation studies
+    - Model evaluation
+    - Final analysis
 
-1. **Baseline Models**
-    - Linear Regression
-    - Ridge Regression
-    - Lasso Regression
+4. Visualization:
+    - Performance plots
+    - Comparison visualizations
+    - Summary dashboards
 
-2. **Advanced Models**
-    - Random Forest
-    - Gradient Boosting
-    - SGD Regressor
-    - Support Vector Regression (SVR)
+## Completed Components
 
-3. **Deep Learning Models**
-    - LSTM (Long Short-Term Memory)
-    - CNN (Convolutional Neural Network)
+1. Data Preprocessing:
+    - Feature engineering
+    - Data cleaning
+    - Validation
 
-4. **Ensemble Models**
-    - Stacked Ensemble
+2. Model Training:
+    - Baseline implementation
+    - Advanced models
+    - Ensemble methods
+    - Hyperparameter tuning
 
-### Pipeline Stages
+3. Analysis:
+    - Ablation studies
+    - Model evaluation
+    - Performance metrics
+    - Final analysis
 
-1. Data Preprocessing
-2. Feature Engineering
-3. Model Training
-4. Hyperparameter Tuning
-5. Model Evaluation
-6. Results Visualization
+4. Visualization:
+    - Model comparison plots
+    - Performance distributions
+    - Ablation study visualizations
+    - Ensemble analysis plots
 
-The structure supports a comprehensive machine learning pipeline with:
-
-- Multiple model types (baseline, advanced, ensemble, deep learning)
-- Separate training scripts for different model types
-- Organized storage of model artifacts and results
-- Clear separation of concerns between different components
-- Support for both basic and advanced pipelines
-- Comprehensive visualization capabilities
-- Systematic evaluation and reporting
-
-This organization ensures reproducibility, maintainability, and clear documentation of the entire machine learning workflow.
+5. Reports:
+    - Model evaluation report
+    - Final analysis report
+    - Comprehensive evaluation
