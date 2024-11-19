@@ -3,15 +3,10 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-from sklearn.ensemble import RandomForestRegressor, GradientBoostingRegressor
-from sklearn.linear_model import SGDRegressor
 from sklearn.model_selection import TimeSeriesSplit
 
 from src.models.advanced_models import AdvancedModels
-from src.models.cnn_model import CNNRegressor
 from src.models.feature_engineering import FeatureEngineer
-from src.models.lstm_model import LSTMRegressor
-from src.models.svr_model import SVRRegressor
 from src.visualization.model_evaluation import create_visualizations
 
 
@@ -39,105 +34,6 @@ class AblationStudy:
         self.data = self.data[list(numeric_cols)]
 
         logging.info(f"Using numeric columns: {list(numeric_cols)}")
-
-    def _initialize_models(self):
-        """Initialize all models."""
-        # Initialize models based on computational efficiency
-        sample_size = len(self.data)
-        logging.info(f"Initializing models for dataset size: {sample_size}")
-
-        # For datasets larger than 50k samples, use efficient models only
-        if sample_size > 50000:
-            logging.info("Using efficient models only due to large dataset size")
-            self.models = {
-                'random_forest': RandomForestRegressor(
-                    n_estimators=50,  # Reduced estimators
-                    max_depth=8,
-                    min_samples_leaf=10,
-                    random_state=42,
-                    n_jobs=-1
-                ),
-                'gradient_boosting': GradientBoostingRegressor(
-                    n_estimators=50,
-                    max_depth=5,
-                    learning_rate=0.1,
-                    random_state=42
-                ),
-                'linear_sgd': SGDRegressor(
-                    loss='squared_error',
-                    penalty='l2',
-                    alpha=0.0001,
-                    max_iter=1000,
-                    tol=1e-3,
-                    random_state=42
-                ),
-                'lstm': LSTMRegressor(
-                    units=32,
-                    dropout=0.2,
-                    learning_rate=0.001,
-                    batch_size=128,
-                    epochs=10,
-                    sequence_length=24
-                ),
-                'cnn': CNNRegressor(
-                    filters=32,
-                    kernel_size=3,
-                    dropout=0.2,
-                    learning_rate=0.001,
-                    batch_size=128,
-                    epochs=10,
-                    sequence_length=24
-                )
-            }
-        else:
-            # For smaller datasets, include SVR
-            logging.info("Including all models including SVR for smaller dataset")
-            self.models = {
-                'random_forest': RandomForestRegressor(
-                    n_estimators=100,
-                    max_depth=10,
-                    min_samples_leaf=5,
-                    random_state=42,
-                    n_jobs=-1
-                ),
-                'gradient_boosting': GradientBoostingRegressor(
-                    n_estimators=100,
-                    max_depth=5,
-                    learning_rate=0.1,
-                    random_state=42
-                ),
-                'linear_sgd': SGDRegressor(
-                    loss='squared_error',
-                    penalty='l2',
-                    alpha=0.0001,
-                    max_iter=1000,
-                    tol=1e-3,
-                    random_state=42
-                ),
-                'svr': SVRRegressor(
-                    kernel='rbf',
-                    C=1.0,
-                    epsilon=0.1,
-                    gamma='scale'
-                ),
-                'lstm': LSTMRegressor(
-                    units=64,
-                    dropout=0.2,
-                    learning_rate=0.001,
-                    batch_size=64,
-                    epochs=20,
-                    sequence_length=24
-                ),
-                'cnn': CNNRegressor(
-                    filters=64,
-                    kernel_size=3,
-                    dropout=0.2,
-                    learning_rate=0.001,
-                    batch_size=64,
-                    epochs=20,
-                    sequence_length=24
-                )
-            }
 
     def run_input_dimension_ablation(self):
         """Study impact of different input features."""
@@ -169,17 +65,6 @@ class AblationStudy:
             results.append(metrics)
 
         return pd.DataFrame(results)
-
-    def _preprocess_data(self, processed_data):
-        """Preprocess data by removing non-numeric columns and handling missing values."""
-        # Get only numeric columns
-        numeric_cols = processed_data.select_dtypes(include=['float64', 'int64']).columns
-        data = processed_data[numeric_cols].copy()
-
-        # Handle missing values
-        data = data.fillna(data.mean())
-
-        return data
 
     def run_preprocessing_ablation(self):
         """Study impact of different preprocessing steps."""
@@ -248,6 +133,17 @@ class AblationStudy:
 
         return self._aggregate_scores(scores)
 
+    def _preprocess_data(self, processed_data):
+        """Preprocess data by removing non-numeric columns and handling missing values."""
+        # Get only numeric columns
+        numeric_cols = processed_data.select_dtypes(include=['float64', 'int64']).columns
+        data = processed_data[numeric_cols].copy()
+
+        # Handle missing values
+        data = data.fillna(data.mean())
+
+        return data
+
     def _evaluate_preprocessing(self, settings):
         """Evaluate model performance with different preprocessing settings."""
         processed_data = self.data.copy()
@@ -259,10 +155,13 @@ class AblationStudy:
             processed_data = self.feature_engineer.create_all_features(processed_data)
             feature_cols = self.feature_engineer.get_feature_sets()['all']
         else:
-            # Use basic numeric columns if not engineering features
-            feature_cols = list(processed_data.columns)
-            if 'kWh' in feature_cols:  # Remove target column from features
-                feature_cols.remove('kWh')
+            # For minimal preprocessing, ensure we have at least the target and basic features
+            processed_data['hour'] = processed_data.index.hour
+            processed_data['hour_sin'] = np.sin(2 * np.pi * processed_data['hour'] / 24)
+            processed_data['hour_cos'] = np.cos(2 * np.pi * processed_data['hour'] / 24)
+            feature_cols = ['hour_sin', 'hour_cos']
+            if 'id' in processed_data.columns:
+                feature_cols.append('id')
 
         tscv = TimeSeriesSplit(n_splits=3)
         scores = []
@@ -272,19 +171,9 @@ class AblationStudy:
             test_data = processed_data.iloc[test_idx]
 
             model = AdvancedModels(train_data, test_data, target_col='kWh')
-            model.feature_cols = feature_cols  # Set feature columns explicitly
-
             if not settings['scale']:
-                # Handle case where no scaling is needed
                 model.scaler = None
-                # Prepare data without scaling
-                model.X_train = model.train_data[model.feature_cols].values
-                model.X_test = model.test_data[model.feature_cols].values
-                model.y_train = model.train_data[model.target_col].values
-                model.y_test = model.test_data[model.target_col].values
-            else:
-                # Use normal data preparation with scaling
-                model.prepare_data()
+            model.prepare_data(feature_columns=feature_cols)
 
             metrics = model.train_models()
             scores.append(metrics)

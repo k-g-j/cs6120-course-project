@@ -47,10 +47,19 @@ class AdvancedModels:
 
     def prepare_data(self, feature_columns=None):
         """Prepare features and target variables with scaling."""
-        # Use provided feature columns
-        self.feature_cols = feature_columns if feature_columns is not None else [
-            col for col in self.train_data.columns if col != self.target_col
-        ]
+        # Get numeric columns only
+        numeric_cols = self.train_data.select_dtypes(include=['float64', 'int64']).columns
+
+        # Use provided feature columns or default to numeric columns except target
+        if feature_columns is not None:
+            # Ensure all feature columns are numeric
+            feature_columns = [col for col in feature_columns if col in numeric_cols]
+        else:
+            feature_columns = [col for col in numeric_cols if col != self.target_col]
+
+        self.feature_cols = feature_columns
+
+        logging.info(f"Using numeric features: {self.feature_cols}")
 
         # Scale features
         self.X_train = pd.DataFrame(
