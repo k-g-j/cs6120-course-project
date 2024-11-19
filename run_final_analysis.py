@@ -1,5 +1,3 @@
-# run_final_analysis.py
-
 import logging
 from datetime import datetime
 
@@ -35,13 +33,12 @@ def main():
         # Initialize analysis compiler
         compiler = FinalAnalysisCompiler(config)
 
-        # Load all results
+        # Load all results (this also computes summary statistics)
         logging.info("Loading results from all studies...")
         compiler.load_all_results()
 
-        # Compute summary statistics
-        logging.info("Computing summary statistics...")
-        compiler.compute_summary_statistics()
+        # Print loaded results summary
+        compiler.print_loaded_results()
 
         # Generate final analysis report
         logging.info("Generating final analysis report...")
