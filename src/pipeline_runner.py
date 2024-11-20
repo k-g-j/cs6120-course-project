@@ -1,7 +1,7 @@
 import logging
 
 import pandas as pd
-from numpy import prod
+
 from src.config import BASE_DIR, DATA_DIR, PROCESSED_DIR, MODEL_DIR, RESULTS_DIR, REPORTS_DIR, \
     VISUALIZATIONS_DIR, LOGS_DIR
 
