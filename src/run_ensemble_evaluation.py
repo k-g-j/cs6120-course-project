@@ -4,11 +4,11 @@ from datetime import datetime
 import pandas as pd
 from sklearn.model_selection import TimeSeriesSplit
 
-from config import CONFIG
-from pipeline_runner import PipelineConfig
+from src.config import CONFIG
 from src.data_preprocessing import SolarDataPreprocessor
 from src.models.feature_engineering import FeatureEngineer
 from src.models.stacked_ensemble import EnhancedStackedEnsemble
+from src.pipeline_runner import PipelineConfig
 from src.visualization.model_evaluation import create_visualizations
 
 

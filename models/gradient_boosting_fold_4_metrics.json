@@ -1,9 +1,1 @@
-{
-  "model_name": "gradient_boosting",
-  "model_type": "advanced",
-  "rmse": 0.7418845085,
-  "mae": 0.4599754705,
-  "r2": 0.3155309571,
-  "mape": 172.1983563562,
-  "fold": 4
-}
+{"model_name":"gradient_boosting","model_type":"advanced","rmse":0.8764061156,"mae":0.5718019485,"r2":0.1144459092,"mape":273.9838131615,"fold":4}

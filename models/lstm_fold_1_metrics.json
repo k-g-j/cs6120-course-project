@@ -1,9 +1,1 @@
-{
-  "model_name": "lstm",
-  "model_type": "advanced",
-  "rmse": 1.0808699028,
-  "mae": 0.5480963445,
-  "r2": 0.1642462033,
-  "mape": 155.3284438769,
-  "fold": 1
-}
+{"model_name":"lstm","model_type":"advanced","rmse":0.7670918718,"mae":0.4829974081,"r2":0.1928632665,"mape":159.0577340734,"fold":1}

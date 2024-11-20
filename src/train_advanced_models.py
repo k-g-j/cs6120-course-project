@@ -66,6 +66,11 @@ def train_and_evaluate_advanced_models(data, config, param_grids):
                             cv=3
                         )
 
+                        # Before model fitting
+                        feature_names = X_train.columns.tolist()
+                        model.set_params(feature_names_in_=feature_names)
+
+
                         if best_model_fold is not None:
                             logging.info(f"Best parameters for {model_name}: {best_params}")
 

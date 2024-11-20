@@ -1,8 +1,8 @@
 import logging
 from datetime import datetime
 
-from analysis_report import AnalysisReport
-from pipeline_runner import PipelineConfig
+from src.analysis_report import AnalysisReport
+from src.pipeline_runner import PipelineConfig
 
 
 def setup_logging(config):

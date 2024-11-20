@@ -1,9 +1,1 @@
-{
-  "model_name": "random_forest",
-  "model_type": "advanced",
-  "rmse": 0.9482382855,
-  "mae": 0.5528988211,
-  "r2": 0.2663162749,
-  "mape": 184.8848920234,
-  "fold": 2
-}
+{"model_name":"random_forest","model_type":"advanced","rmse":1.0932782465,"mae":0.6009808333,"r2":0.0804188134,"mape":180.8753396614,"fold":2}

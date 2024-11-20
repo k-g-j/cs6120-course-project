@@ -4,7 +4,7 @@ from datetime import datetime
 
 import pandas as pd
 
-from config import CONFIG
+from src.config import CONFIG
 from src.data_preprocessing import SolarDataPreprocessor
 
 
