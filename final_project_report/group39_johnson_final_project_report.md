@@ -1,6 +1,7 @@
 # Predictive Modeling of Solar Energy Production Using Machine Learning Techniques
 
 ## CS6120 Final Project Report by Kate Johnson
+## Group 39
 
 [**GitHub Repository**](https://github.com/k-g-j/cs6120-course-project)
 
